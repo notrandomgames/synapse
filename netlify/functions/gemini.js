@@ -14,17 +14,14 @@ exports.handler = async (event) => {
             };
         }
 
-        // Updated array with currently supported active models
+        // List active models and fallback variants
         const models = [
             "gemini-3.6-flash",
-            "gemini-2.5-flash",
-            "gemini-2.5-pro",
-            "gemini-2.0-flash"
+            "gemini-3.6-pro"
         ];
 
         let lastError = null;
 
-        // Try each model until one succeeds
         for (const model of models) {
             try {
                 const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
@@ -39,7 +36,6 @@ exports.handler = async (event) => {
 
                 const data = await response.json();
 
-                // If successful
                 if (!data.error) {
                     return {
                         statusCode: 200,
@@ -48,18 +44,16 @@ exports.handler = async (event) => {
                 }
 
                 lastError = data.error.message || `Error calling ${model}`;
-                console.warn(`Model ${model} failed, attempting next fallback model. Error:`, lastError);
+                console.warn(`Model ${model} failed:`, lastError);
 
             } catch (err) {
                 lastError = err.message;
-                console.warn(`Network failure attempting model ${model}:`, lastError);
             }
         }
 
-        // If all models in the fallback array failed
         return {
-            statusCode: 400,
-            body: JSON.stringify({ error: `All fallback models failed. Last error: ${lastError}` })
+            statusCode: 429,
+            body: JSON.stringify({ error: `Rate limit reached or quota exceeded. ${lastError}` })
         };
 
     } catch (error) {
