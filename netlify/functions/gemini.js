@@ -5,7 +5,6 @@ exports.handler = async (event) => {
 
     try {
         const { prompt } = JSON.parse(event.body);
-        // Supports both variable names
         const API_KEY = process.env.GEMINI_API_KEY || process.env.synapse;
 
         if (!API_KEY) {
@@ -15,30 +14,54 @@ exports.handler = async (event) => {
             };
         }
 
-        // Updated model endpoint to gemini-3.6-flash
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                contents: [{
-                    parts: [{ text: prompt }]
-                }]
-            })
-        });
+        // List models in order of preference
+        const models = [
+            "gemini-3.6-flash",
+            "gemini-2.5-flash",
+            "gemini-1.5-flash"
+        ];
 
-        const data = await response.json();
+        let lastError = null;
 
-        if (data.error) {
-            return {
-                statusCode: 400,
-                body: JSON.stringify({ error: data.error.message || "Gemini API error" })
-            };
+        // Try each model until one succeeds
+        for (const model of models) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{ text: prompt }]
+                        }]
+                    })
+                });
+
+                const data = await response.json();
+
+                // If the model succeeds without returning an API error
+                if (!data.error) {
+                    return {
+                        statusCode: 200,
+                        body: JSON.stringify(data)
+                    };
+                }
+
+                // Save the error and continue loop to try the next model
+                lastError = data.error.message || `Error calling ${model}`;
+                console.warn(`Model ${model} failed, attempting next fallback model. Error:`, lastError);
+
+            } catch (err) {
+                lastError = err.message;
+                console.warn(`Network failure attempting model ${model}:`, lastError);
+            }
         }
 
+        // If all models failed
         return {
-            statusCode: 200,
-            body: JSON.stringify(data)
+            statusCode: 400,
+            body: JSON.stringify({ error: `All fallback models failed. Last error: ${lastError}` })
         };
+
     } catch (error) {
         return {
             statusCode: 500,
