@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Synapse</title>
     <style>
         :root {
@@ -40,11 +40,25 @@
             color: var(--text-primary);
             display: flex;
             height: 100vh;
+            height: 100dvh; /* Dynamic viewport height for mobile browsers */
             overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Collapsible Sidebar */
+        /* Mobile Sidebar Overlay Backdrop */
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(2px);
+            z-index: 40;
+        }
+
+        /* Sidebar Styling */
         aside {
             width: 260px;
             background-color: var(--bg-sidebar);
@@ -53,9 +67,10 @@
             flex-direction: column;
             padding: 16px;
             gap: 16px;
-            transition: width 0.3s ease, padding 0.3s ease;
+            transition: transform 0.3s ease, width 0.3s ease, padding 0.3s ease;
             position: relative;
             flex-shrink: 0;
+            z-index: 50;
         }
 
         aside.collapsed {
@@ -91,9 +106,9 @@
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            font-size: 1.1rem;
+            font-size: 1.2rem;
             cursor: pointer;
-            padding: 4px 6px;
+            padding: 6px 8px;
             border-radius: 6px;
             transition: background 0.2s, color 0.2s;
         }
@@ -107,7 +122,7 @@
             background-color: var(--bg-card);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
-            padding: 10px 14px;
+            padding: 12px 14px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 0.88rem;
@@ -150,7 +165,7 @@
         }
 
         .history-item {
-            padding: 8px 10px;
+            padding: 10px;
             border-radius: 6px;
             font-size: 0.85rem;
             color: var(--text-secondary);
@@ -166,7 +181,6 @@
             color: var(--text-primary);
         }
 
-        /* Sidebar Footer Settings Button */
         .sidebar-footer {
             margin-top: auto;
             border-top: 1px solid var(--border-color);
@@ -178,7 +192,7 @@
             background: transparent;
             border: none;
             color: var(--text-secondary);
-            padding: 8px 10px;
+            padding: 10px;
             border-radius: 6px;
             cursor: pointer;
             display: flex;
@@ -200,7 +214,26 @@
             flex-direction: column;
             align-items: center;
             justify-content: space-between;
-            padding: 24px;
+            padding: 16px;
+            position: relative;
+            width: 100%;
+        }
+
+        .mobile-header {
+            display: none;
+            width: 100%;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 8px;
+        }
+
+        .mobile-menu-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.4rem;
+            padding: 6px;
+            cursor: pointer;
         }
 
         .content-container {
@@ -212,8 +245,8 @@
         }
 
         .welcome-section {
-            margin-top: 60px;
-            margin-bottom: 20px;
+            margin-top: 40px;
+            margin-bottom: 16px;
         }
 
         .welcome-title {
@@ -235,7 +268,7 @@
             display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
-            margin-top: 24px;
+            margin-top: 20px;
             margin-bottom: auto;
         }
 
@@ -263,29 +296,29 @@
             line-height: 1.4;
         }
 
-        /* Chat Area */
+        /* Chat Messages Container */
         .messages-container {
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 24px;
-            padding-right: 8px;
-            margin-bottom: 20px;
+            gap: 20px;
+            padding-right: 4px;
+            margin-bottom: 16px;
         }
 
         .message {
             display: flex;
-            gap: 16px;
+            gap: 12px;
             line-height: 1.6;
         }
 
         .message.user .message-content {
             background-color: var(--bg-card);
             border: 1px solid var(--border-color);
-            padding: 12px 18px;
+            padding: 12px 16px;
             border-radius: 16px;
-            max-width: 80%;
+            max-width: 85%;
             margin-left: auto;
         }
 
@@ -302,17 +335,18 @@
             font-size: 0.95rem;
             color: var(--text-primary);
             white-space: pre-wrap;
+            word-break: break-word;
         }
 
-        /* Input Container */
+        /* Input Bar */
         .input-container {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 14px 18px;
+            padding: 12px 16px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
             transition: border-color 0.2s;
         }
 
@@ -326,7 +360,7 @@
             border: none;
             outline: none;
             color: var(--text-primary);
-            font-size: 0.98rem;
+            font-size: 1rem; /* Minimum 16px to prevent iOS auto-zoom */
             resize: none;
             height: 24px;
         }
@@ -340,8 +374,8 @@
         .send-btn {
             background: var(--text-primary);
             border: none;
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
             color: var(--bg-main);
             font-weight: bold;
@@ -358,10 +392,10 @@
         }
 
         .footer-text {
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             color: var(--text-secondary);
             text-align: center;
-            margin-top: 10px;
+            margin-top: 8px;
         }
 
         /* Settings Modal Overlay */
@@ -377,15 +411,16 @@
             z-index: 100;
             justify-content: center;
             align-items: center;
+            padding: 16px;
         }
 
         .modal-card {
             background: var(--bg-sidebar);
             border: 1px solid var(--border-color);
             width: 100%;
-            max-width: 460px;
+            max-width: 420px;
             border-radius: 14px;
-            padding: 24px;
+            padding: 20px;
             display: flex;
             flex-direction: column;
             gap: 20px;
@@ -399,7 +434,7 @@
         }
 
         .modal-title {
-            font-size: 1.2rem;
+            font-size: 1.1rem;
             font-weight: 600;
         }
 
@@ -409,6 +444,7 @@
             color: var(--text-secondary);
             font-size: 1.2rem;
             cursor: pointer;
+            padding: 4px;
         }
 
         .setting-group {
@@ -426,7 +462,7 @@
             background: var(--bg-card);
             border: 1px solid var(--border-color);
             color: var(--text-primary);
-            padding: 6px 12px;
+            padding: 8px 12px;
             border-radius: 6px;
             outline: none;
             cursor: pointer;
@@ -436,7 +472,7 @@
             background: #ef4444;
             color: #fff;
             border: none;
-            padding: 8px 14px;
+            padding: 10px 14px;
             border-radius: 6px;
             cursor: pointer;
             font-size: 0.85rem;
@@ -446,9 +482,80 @@
         .danger-btn:hover {
             opacity: 0.9;
         }
+
+        /* Responsive Mobile Breakpoints */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .mobile-header {
+                display: flex;
+            }
+
+            .sidebar-overlay.active {
+                display: block;
+            }
+
+            aside {
+                position: fixed;
+                top: 0;
+                left: 0;
+                height: 100vh;
+                height: 100dvh;
+                width: 280px !important;
+                transform: translateX(-100%);
+                box-shadow: 5px 0 25px rgba(0, 0, 0, 0.5);
+            }
+
+            aside.mobile-open {
+                transform: translateX(0);
+            }
+
+            aside.collapsed .chat-history, 
+            aside.collapsed .history-title,
+            aside.collapsed .brand-text,
+            aside.collapsed .btn-text {
+                display: flex;
+            }
+
+            main {
+                padding: 12px;
+            }
+
+            .welcome-section {
+                margin-top: 16px;
+            }
+
+            .welcome-title {
+                font-size: 2.1rem;
+            }
+
+            .welcome-subtitle {
+                font-size: 0.95rem;
+            }
+
+            .cards-grid {
+                grid-template-columns: 1fr;
+                gap: 10px;
+                margin-top: 16px;
+            }
+
+            .card {
+                min-height: auto;
+                padding: 14px;
+            }
+
+            .message.user .message-content {
+                max-width: 90%;
+            }
+        }
     </style>
 </head>
 <body>
+
+    <!-- Mobile Backdrop -->
+    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
     <!-- Sidebar -->
     <aside id="sidebar">
@@ -480,6 +587,15 @@
 
     <!-- Main Workspace -->
     <main>
+        <div class="mobile-header">
+            <button class="mobile-menu-btn" onclick="openMobileSidebar()">☰</button>
+            <div class="brand-logo">
+                <div class="brand-icon"></div>
+                <span style="font-weight: 600;">Synapse</span>
+            </div>
+            <button class="mobile-menu-btn" onclick="startNewChat()">+</button>
+        </div>
+
         <div class="content-container">
             
             <div class="welcome-section" id="welcomeSection">
@@ -536,6 +652,7 @@
 
     <script>
         const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
         const welcomeSection = document.getElementById('welcomeSection');
         const cardsGrid = document.getElementById('cardsGrid');
         const messagesContainer = document.getElementById('messagesContainer');
@@ -547,20 +664,34 @@
         let chatSessions = JSON.parse(localStorage.getItem('synapse_chats')) || [];
         let currentSessionId = null;
 
-        // Load saved theme preference
         const savedTheme = localStorage.getItem('synapse_theme') || 'dark';
         changeTheme(savedTheme);
         themeSelect.value = savedTheme;
 
         renderHistory();
 
-        /* Sidebar Minimization */
+        /* Mobile Sidebar Drawer Functions */
+        function openMobileSidebar() {
+            sidebar.classList.add('mobile-open');
+            sidebarOverlay.classList.add('active');
+        }
+
+        function closeMobileSidebar() {
+            sidebar.classList.remove('mobile-open');
+            sidebarOverlay.classList.remove('active');
+        }
+
         function toggleSidebar() {
-            sidebar.classList.toggle('collapsed');
+            if (window.innerWidth <= 768) {
+                closeMobileSidebar();
+            } else {
+                sidebar.classList.toggle('collapsed');
+            }
         }
 
         /* Settings Functions */
         function openSettings() {
+            closeMobileSidebar();
             settingsModal.style.display = 'flex';
         }
 
@@ -674,7 +805,10 @@
                 item.classList.add('history-item');
                 if (session.id === currentSessionId) item.classList.add('active');
                 item.innerText = session.title;
-                item.onclick = () => loadSession(session.id);
+                item.onclick = () => {
+                    loadSession(session.id);
+                    closeMobileSidebar();
+                };
                 historyList.appendChild(item);
             });
         }
@@ -701,6 +835,7 @@
             cardsGrid.style.display = 'grid';
             userInput.value = '';
             renderHistory();
+            closeMobileSidebar();
         }
     </script>
 </body>
