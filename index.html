@@ -4,6 +4,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Synapse</title>
+    
+    <!-- Highlight.js Theme (Atom One Dark) -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    
+    <!-- Marked.js (Markdown) & Highlight.js (Code Syntax Highlighting) -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+
     <style>
         :root {
             /* Palette: Dark (Default) */
@@ -40,12 +48,12 @@
             color: var(--text-primary);
             display: flex;
             height: 100vh;
-            height: 100dvh; /* Dynamic viewport height for mobile browsers */
+            height: 100dvh;
             overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Mobile Sidebar Overlay Backdrop */
+        /* Mobile Backdrop Overlay */
         .sidebar-overlay {
             display: none;
             position: fixed;
@@ -58,7 +66,7 @@
             z-index: 40;
         }
 
-        /* Sidebar Styling */
+        /* Collapsible Sidebar */
         aside {
             width: 260px;
             background-color: var(--bg-sidebar);
@@ -296,7 +304,7 @@
             line-height: 1.4;
         }
 
-        /* Chat Messages Container */
+        /* Messages Area */
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -334,11 +342,54 @@
         .message-content {
             font-size: 0.95rem;
             color: var(--text-primary);
-            white-space: pre-wrap;
             word-break: break-word;
+            width: 100%;
         }
 
-        /* Input Bar */
+        .message-content p {
+            margin-bottom: 8px;
+        }
+
+        .message-content p:last-child {
+            margin-bottom: 0;
+        }
+
+        /* Code Block Formatting */
+        .message-content pre {
+            background: #282c34;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            overflow-x: auto;
+            position: relative;
+            border: 1px solid var(--border-color);
+        }
+
+        .message-content code {
+            font-family: "Fira Code", Consolas, Monaco, "Andale Mono", monospace;
+            font-size: 0.88rem;
+        }
+
+        .copy-code-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: var(--bg-card);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .copy-code-btn:hover {
+            background: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        /* Input Field */
         .input-container {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
@@ -360,7 +411,7 @@
             border: none;
             outline: none;
             color: var(--text-primary);
-            font-size: 1rem; /* Minimum 16px to prevent iOS auto-zoom */
+            font-size: 1rem;
             resize: none;
             height: 24px;
         }
@@ -483,7 +534,7 @@
             opacity: 0.9;
         }
 
-        /* Responsive Mobile Breakpoints */
+        /* Mobile Adjustments */
         @media (max-width: 768px) {
             body {
                 flex-direction: column;
@@ -554,10 +605,8 @@
 </head>
 <body>
 
-    <!-- Mobile Backdrop -->
     <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeMobileSidebar()"></div>
 
-    <!-- Sidebar -->
     <aside id="sidebar">
         <div class="brand">
             <div class="brand-logo">
@@ -585,7 +634,6 @@
         </div>
     </aside>
 
-    <!-- Main Workspace -->
     <main>
         <div class="mobile-header">
             <button class="mobile-menu-btn" onclick="openMobileSidebar()">☰</button>
@@ -627,7 +675,6 @@
         </div>
     </main>
 
-    <!-- Settings Modal -->
     <div class="modal-overlay" id="settingsModal">
         <div class="modal-card">
             <div class="modal-header">
@@ -668,9 +715,20 @@
         changeTheme(savedTheme);
         themeSelect.value = savedTheme;
 
+        // Configure Marked parser to use Highlight.js
+        marked.setOptions({
+            highlight: function(code, lang) {
+                if (lang && hljs.getLanguage(lang)) {
+                    return hljs.highlight(code, { language: lang }).value;
+                }
+                return hljs.highlightAuto(code).value;
+            },
+            breaks: true
+        });
+
         renderHistory();
 
-        /* Mobile Sidebar Drawer Functions */
+        /* Mobile Sidebar Controls */
         function openMobileSidebar() {
             sidebar.classList.add('mobile-open');
             sidebarOverlay.classList.add('active');
@@ -689,7 +747,7 @@
             }
         }
 
-        /* Settings Functions */
+        /* Settings Modal Controls */
         function openSettings() {
             closeMobileSidebar();
             settingsModal.style.display = 'flex';
@@ -770,7 +828,8 @@
                     aiResponseText = "Error: Invalid response format.";
                 }
 
-                loadingElement.innerText = aiResponseText;
+                loadingElement.innerHTML = marked.parse(aiResponseText);
+                attachCopyButtons(loadingElement.parentElement);
                 saveMessageToSession('ai', aiResponseText);
 
             } catch (err) {
@@ -783,11 +842,40 @@
         function appendMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender);
+
+            const formattedContent = sender === 'ai' ? marked.parse(text) : text;
+
             messageDiv.innerHTML = sender === 'ai' 
-                ? `<div class="avatar"></div><div class="message-content">${text}</div>`
+                ? `<div class="avatar"></div><div class="message-content">${formattedContent}</div>`
                 : `<div class="message-content">${text}</div>`;
+
             messagesContainer.appendChild(messageDiv);
+
+            if (sender === 'ai') {
+                attachCopyButtons(messageDiv);
+            }
+
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function attachCopyButtons(container) {
+            container.querySelectorAll('pre').forEach(pre => {
+                if (pre.querySelector('.copy-code-btn')) return;
+
+                const button = document.createElement('button');
+                button.className = 'copy-code-btn';
+                button.innerText = 'Copy';
+
+                button.addEventListener('click', () => {
+                    const code = pre.querySelector('code').innerText;
+                    navigator.clipboard.writeText(code).then(() => {
+                        button.innerText = 'Copied!';
+                        setTimeout(() => button.innerText = 'Copy', 2000);
+                    });
+                });
+
+                pre.appendChild(button);
+            });
         }
 
         function saveMessageToSession(sender, content) {
