@@ -6,7 +6,7 @@
     <title>Synapse</title>
     <style>
         :root {
-            /* Hybrid Palette: Gemini Dark + Claude Warmth */
+            /* Palette: Dark (Default) */
             --bg-main: #18181b;
             --bg-sidebar: #121215;
             --bg-card: #202024;
@@ -15,10 +15,22 @@
             --border-color: rgba(255, 255, 255, 0.08);
             --text-primary: #f4f4f5;
             --text-secondary: #a1a1aa;
-            --accent-warm: #d97706; /* Claude Warm Amber */
-            --accent-blue: #a8c7fa; /* Gemini Soft Blue */
+            --accent-warm: #d97706;
+            --accent-blue: #a8c7fa;
             --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             --font-serif: "Georgia", "Cambria", serif;
+        }
+
+        /* Light Mode Theme Variant */
+        body.light-theme {
+            --bg-main: #fcfcfc;
+            --bg-sidebar: #f4f4f5;
+            --bg-card: #ffffff;
+            --bg-card-hover: #f1f1f3;
+            --bg-input: #ffffff;
+            --border-color: rgba(0, 0, 0, 0.1);
+            --text-primary: #18181b;
+            --text-secondary: #71717a;
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-sans); }
@@ -29,9 +41,10 @@
             display: flex;
             height: 100vh;
             overflow: hidden;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        /* Minimal Sidebar (Claude/Gemini style) */
+        /* Collapsible Sidebar */
         aside {
             width: 260px;
             background-color: var(--bg-sidebar);
@@ -39,23 +52,55 @@
             display: flex;
             flex-direction: column;
             padding: 16px;
-            gap: 20px;
+            gap: 16px;
+            transition: width 0.3s ease, padding 0.3s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        aside.collapsed {
+            width: 68px;
+            padding: 16px 10px;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 10px;
+            justify-content: space-between;
             font-size: 1.1rem;
             font-weight: 600;
             color: var(--text-primary);
         }
 
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            overflow: hidden;
+        }
+
         .brand-icon {
-            width: 18px;
-            height: 18px;
+            width: 20px;
+            height: 20px;
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
+            flex-shrink: 0;
+        }
+
+        .toggle-sidebar-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .toggle-sidebar-btn:hover {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
         }
 
         .new-chat-btn {
@@ -69,8 +114,10 @@
             font-weight: 500;
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
             transition: background 0.2s, border-color 0.2s;
+            white-space: nowrap;
+            overflow: hidden;
         }
 
         .new-chat-btn:hover {
@@ -84,6 +131,13 @@
             display: flex;
             flex-direction: column;
             gap: 4px;
+        }
+
+        aside.collapsed .chat-history, 
+        aside.collapsed .history-title,
+        aside.collapsed .brand-text,
+        aside.collapsed .btn-text {
+            display: none;
         }
 
         .history-title {
@@ -112,6 +166,33 @@
             color: var(--text-primary);
         }
 
+        /* Sidebar Footer Settings Button */
+        .sidebar-footer {
+            margin-top: auto;
+            border-top: 1px solid var(--border-color);
+            padding-top: 12px;
+        }
+
+        .settings-btn {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 8px 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.88rem;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .settings-btn:hover {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+        }
+
         /* Main Workspace */
         main {
             flex: 1;
@@ -130,7 +211,6 @@
             flex-direction: column;
         }
 
-        /* Claude-inspired Elegant Header */
         .welcome-section {
             margin-top: 60px;
             margin-bottom: 20px;
@@ -151,7 +231,6 @@
             font-weight: 400;
         }
 
-        /* Gemini-style Prompt Cards */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
@@ -184,7 +263,7 @@
             line-height: 1.4;
         }
 
-        /* Messages Area */
+        /* Chat Area */
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -225,7 +304,7 @@
             white-space: pre-wrap;
         }
 
-        /* Clean Hybrid Input Box */
+        /* Input Container */
         .input-container {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
@@ -284,22 +363,122 @@
             text-align: center;
             margin-top: 10px;
         }
+
+        /* Settings Modal Overlay */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-card {
+            background: var(--bg-sidebar);
+            border: 1px solid var(--border-color);
+            width: 100%;
+            max-width: 460px;
+            border-radius: 14px;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .close-modal-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .setting-group {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .setting-label {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+        }
+
+        .setting-select {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .danger-btn {
+            background: #ef4444;
+            color: #fff;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: opacity 0.2s;
+        }
+
+        .danger-btn:hover {
+            opacity: 0.9;
+        }
     </style>
 </head>
 <body>
 
-    <aside>
+    <!-- Sidebar -->
+    <aside id="sidebar">
         <div class="brand">
-            <div class="brand-icon"></div>
-            <span>Synapse</span>
+            <div class="brand-logo">
+                <div class="brand-icon"></div>
+                <span class="brand-text">Synapse</span>
+            </div>
+            <button class="toggle-sidebar-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
         </div>
-        <button class="new-chat-btn" onclick="startNewChat()">+ New chat</button>
+
+        <button class="new-chat-btn" onclick="startNewChat()">
+            <span>+</span>
+            <span class="btn-text">New chat</span>
+        </button>
+
         <div class="chat-history">
             <div class="history-title">Recent</div>
             <div id="historyList"></div>
         </div>
+
+        <div class="sidebar-footer">
+            <button class="settings-btn" onclick="openSettings()">
+                <span>⚙</span>
+                <span class="btn-text">Settings</span>
+            </button>
+        </div>
     </aside>
 
+    <!-- Main Workspace -->
     <main>
         <div class="content-container">
             
@@ -332,18 +511,83 @@
         </div>
     </main>
 
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settingsModal">
+        <div class="modal-card">
+            <div class="modal-header">
+                <h3 class="modal-title">Settings</h3>
+                <button class="close-modal-btn" onclick="closeSettings()">✕</button>
+            </div>
+            
+            <div class="setting-group">
+                <span class="setting-label">Appearance</span>
+                <select class="setting-select" id="themeSelect" onchange="changeTheme(this.value)">
+                    <option value="dark">Dark Theme</option>
+                    <option value="light">Light Theme</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <span class="setting-label">Clear Chat History</span>
+                <button class="danger-btn" onclick="clearAllData()">Clear All Data</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const sidebar = document.getElementById('sidebar');
         const welcomeSection = document.getElementById('welcomeSection');
         const cardsGrid = document.getElementById('cardsGrid');
         const messagesContainer = document.getElementById('messagesContainer');
         const userInput = document.getElementById('userInput');
         const historyList = document.getElementById('historyList');
+        const settingsModal = document.getElementById('settingsModal');
+        const themeSelect = document.getElementById('themeSelect');
 
         let chatSessions = JSON.parse(localStorage.getItem('synapse_chats')) || [];
         let currentSessionId = null;
 
+        // Load saved theme preference
+        const savedTheme = localStorage.getItem('synapse_theme') || 'dark';
+        changeTheme(savedTheme);
+        themeSelect.value = savedTheme;
+
         renderHistory();
 
+        /* Sidebar Minimization */
+        function toggleSidebar() {
+            sidebar.classList.toggle('collapsed');
+        }
+
+        /* Settings Functions */
+        function openSettings() {
+            settingsModal.style.display = 'flex';
+        }
+
+        function closeSettings() {
+            settingsModal.style.display = 'none';
+        }
+
+        function changeTheme(theme) {
+            if (theme === 'light') {
+                document.body.classList.add('light-theme');
+            } else {
+                document.body.classList.remove('light-theme');
+            }
+            localStorage.setItem('synapse_theme', theme);
+        }
+
+        function clearAllData() {
+            if (confirm("Are you sure you want to clear all saved chats?")) {
+                localStorage.removeItem('synapse_chats');
+                chatSessions = [];
+                currentSessionId = null;
+                startNewChat();
+                closeSettings();
+            }
+        }
+
+        /* Chat Logic */
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
