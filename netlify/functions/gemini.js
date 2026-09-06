@@ -14,10 +14,11 @@ exports.handler = async (event) => {
             };
         }
 
-        // List active models and fallback variants
+        // Active, supported Flash model fallback endpoints
         const models = [
             "gemini-3.6-flash",
-            "gemini-3.6-pro"
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite"
         ];
 
         let lastError = null;
@@ -51,9 +52,12 @@ exports.handler = async (event) => {
             }
         }
 
+        // Catch rate limits cleanly if all models exceed free quota limits
         return {
             statusCode: 429,
-            body: JSON.stringify({ error: `Rate limit reached or quota exceeded. ${lastError}` })
+            body: JSON.stringify({ 
+                error: `Quota exceeded or rate limit reached on Free Tier. Please wait a minute before sending another message. (${lastError})` 
+            })
         };
 
     } catch (error) {
