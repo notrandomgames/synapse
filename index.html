@@ -3,91 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SYNAPSE // NEURAL INTERFACE</title>
+    <title>Synapse</title>
     <style>
         :root {
-            --bg-dark: #05070f;
-            --bg-sidebar: #090d1a;
-            --glass-bg: rgba(15, 23, 42, 0.65);
-            --glass-border: rgba(56, 189, 248, 0.2);
-            --neon-cyan: #00f0ff;
-            --neon-purple: #7000ff;
-            --neon-pink: #ff007f;
-            --text-main: #f1f5f9;
-            --text-dim: #94a3b8;
-            --font-main: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            /* Hybrid Palette: Gemini Dark + Claude Warmth */
+            --bg-main: #18181b;
+            --bg-sidebar: #121215;
+            --bg-card: #202024;
+            --bg-card-hover: #28282d;
+            --bg-input: #222226;
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f4f4f5;
+            --text-secondary: #a1a1aa;
+            --accent-warm: #d97706; /* Claude Warm Amber */
+            --accent-blue: #a8c7fa; /* Gemini Soft Blue */
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            --font-serif: "Georgia", "Cambria", serif;
         }
 
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-sans); }
 
         body {
-            background-color: var(--bg-dark);
-            color: var(--text-main);
+            background-color: var(--bg-main);
+            color: var(--text-primary);
             display: flex;
             height: 100vh;
             overflow: hidden;
-            background-image: 
-                radial-gradient(circle at 15% 15%, rgba(112, 0, 255, 0.15) 0%, transparent 40%),
-                radial-gradient(circle at 85% 85%, rgba(0, 240, 255, 0.12) 0%, transparent 40%);
         }
 
-        /* Futuristic Sidebar */
+        /* Minimal Sidebar (Claude/Gemini style) */
         aside {
-            width: 280px;
-            background: var(--bg-sidebar);
-            border-right: 1px solid var(--glass-border);
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            border-right: 1px solid var(--border-color);
             display: flex;
             flex-direction: column;
-            padding: 20px 16px;
+            padding: 16px;
             gap: 20px;
-            box-shadow: 5px 0 25px rgba(0,0,0,0.5);
-            z-index: 10;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            gap: 12px;
-            font-size: 1.3rem;
-            font-weight: 800;
-            letter-spacing: 2px;
-            color: var(--text-main);
-            text-shadow: 0 0 10px rgba(0, 240, 255, 0.5);
+            gap: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
         }
 
-        .brand-orb {
-            width: 14px;
-            height: 14px;
-            background: var(--neon-cyan);
+        .brand-icon {
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            box-shadow: 0 0 15px var(--neon-cyan), 0 0 30px var(--neon-cyan);
-            animation: pulse 2s infinite alternate;
-        }
-
-        @keyframes pulse {
-            0% { transform: scale(0.9); opacity: 0.8; }
-            100% { transform: scale(1.2); opacity: 1; }
+            background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
         }
 
         .new-chat-btn {
-            background: linear-gradient(135deg, rgba(0, 240, 255, 0.1), rgba(112, 0, 255, 0.2));
-            color: var(--neon-cyan);
-            border: 1px solid var(--neon-cyan);
-            padding: 12px 16px;
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 10px 14px;
             border-radius: 8px;
             cursor: pointer;
-            font-weight: 600;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            font-size: 0.8rem;
-            transition: all 0.3s ease;
-            box-shadow: 0 0 10px rgba(0, 240, 255, 0.15);
+            font-size: 0.88rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: background 0.2s, border-color 0.2s;
         }
 
         .new-chat-btn:hover {
-            background: var(--neon-cyan);
-            color: #000;
-            box-shadow: 0 0 20px var(--neon-cyan);
+            background-color: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
         .chat-history {
@@ -95,38 +83,36 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 4px;
         }
 
         .history-title {
-            font-size: 0.7rem;
-            color: var(--text-dim);
-            letter-spacing: 1.5px;
+            font-size: 0.72rem;
+            color: var(--text-secondary);
             text-transform: uppercase;
+            letter-spacing: 0.5px;
             margin-bottom: 6px;
+            padding-left: 4px;
         }
 
         .history-item {
-            padding: 10px 12px;
+            padding: 8px 10px;
             border-radius: 6px;
             font-size: 0.85rem;
-            color: var(--text-dim);
+            color: var(--text-secondary);
             cursor: pointer;
-            border: 1px solid transparent;
             white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            transition: all 0.2s;
+            transition: background 0.2s, color 0.2s;
         }
 
         .history-item:hover, .history-item.active {
-            background: rgba(255, 255, 255, 0.05);
-            color: var(--text-main);
-            border-color: var(--glass-border);
-            text-shadow: 0 0 8px rgba(255,255,255,0.3);
+            background-color: var(--bg-card);
+            color: var(--text-primary);
         }
 
-        /* Main Glass Workspace */
+        /* Main Workspace */
         main {
             flex: 1;
             display: flex;
@@ -134,170 +120,169 @@
             align-items: center;
             justify-content: space-between;
             padding: 24px;
-            position: relative;
         }
 
         .content-container {
             width: 100%;
-            max-width: 850px;
+            max-width: 800px;
             height: 100%;
             display: flex;
             flex-direction: column;
         }
 
+        /* Claude-inspired Elegant Header */
         .welcome-section {
             margin-top: 60px;
-            text-align: center;
+            margin-bottom: 20px;
         }
 
         .welcome-title {
-            font-size: 3.5rem;
-            font-weight: 900;
-            letter-spacing: -1px;
-            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple), var(--neon-pink));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            text-shadow: 0 0 30px rgba(0, 240, 255, 0.2);
+            font-family: var(--font-serif);
+            font-size: 2.8rem;
+            font-weight: 400;
+            color: var(--text-primary);
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
         }
 
         .welcome-subtitle {
-            font-size: 1.1rem;
-            color: var(--text-dim);
-            margin-top: 10px;
-            letter-spacing: 1px;
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            font-weight: 400;
         }
 
+        /* Gemini-style Prompt Cards */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-top: 40px;
+            gap: 12px;
+            margin-top: 24px;
             margin-bottom: auto;
         }
 
         .card {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(12px);
-            padding: 20px;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 16px;
             border-radius: 12px;
             cursor: pointer;
-            transition: all 0.3s ease;
+            transition: background 0.2s, border-color 0.2s;
+            min-height: 90px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
         }
 
         .card:hover {
-            border-color: var(--neon-cyan);
-            transform: translateY(-3px);
-            box-shadow: 0 0 15px rgba(0, 240, 255, 0.2);
+            background-color: var(--bg-card-hover);
+            border-color: rgba(255, 255, 255, 0.15);
         }
 
         .card-text {
-            font-size: 0.9rem;
-            color: var(--text-main);
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
         }
 
-        /* Chat Window */
+        /* Messages Area */
         .messages-container {
             flex: 1;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 20px;
-            padding-right: 12px;
+            gap: 24px;
+            padding-right: 8px;
             margin-bottom: 20px;
         }
 
         .message {
             display: flex;
             gap: 16px;
-            animation: fadeIn 0.3s ease-in-out;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            line-height: 1.6;
         }
 
         .message.user .message-content {
-            background: linear-gradient(135deg, rgba(112, 0, 255, 0.3), rgba(0, 240, 255, 0.15));
-            border: 1px solid var(--glass-border);
-            padding: 14px 18px;
-            border-radius: 16px 16px 2px 16px;
-            margin-left: auto;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            padding: 12px 18px;
+            border-radius: 16px;
             max-width: 80%;
+            margin-left: auto;
         }
 
         .message.ai .avatar {
-            width: 32px;
-            height: 32px;
-            background: linear-gradient(135deg, var(--neon-cyan), var(--neon-purple));
-            border-radius: 8px;
+            width: 26px;
+            height: 26px;
+            background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
+            border-radius: 50%;
             flex-shrink: 0;
-            box-shadow: 0 0 10px var(--neon-cyan);
+            margin-top: 2px;
         }
 
         .message-content {
             font-size: 0.95rem;
-            line-height: 1.6;
+            color: var(--text-primary);
             white-space: pre-wrap;
         }
 
-        /* Futuristic Input Field */
+        /* Clean Hybrid Input Box */
         .input-container {
-            background: var(--glass-bg);
-            border: 1px solid var(--glass-border);
-            backdrop-filter: blur(16px);
+            background-color: var(--bg-input);
+            border: 1px solid var(--border-color);
             border-radius: 16px;
-            padding: 14px 20px;
+            padding: 14px 18px;
             display: flex;
-            align-items: center;
-            gap: 12px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-            transition: border-color 0.3s;
+            flex-direction: column;
+            gap: 10px;
+            transition: border-color 0.2s;
         }
 
         .input-container:focus-within {
-            border-color: var(--neon-cyan);
-            box-shadow: 0 0 20px rgba(0, 240, 255, 0.25);
+            border-color: rgba(255, 255, 255, 0.2);
         }
 
         .input-box {
-            flex: 1;
+            width: 100%;
             background: transparent;
             border: none;
             outline: none;
-            color: var(--text-main);
-            font-size: 1rem;
+            color: var(--text-primary);
+            font-size: 0.98rem;
             resize: none;
             height: 24px;
         }
 
+        .input-controls {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+        }
+
         .send-btn {
-            background: var(--neon-cyan);
+            background: var(--text-primary);
             border: none;
-            width: 36px;
-            height: 36px;
-            border-radius: 8px;
-            color: #000;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            color: var(--bg-main);
             font-weight: bold;
             cursor: pointer;
-            transition: all 0.3s;
             display: flex;
             align-items: center;
             justify-content: center;
+            font-size: 0.85rem;
+            transition: opacity 0.2s;
         }
 
         .send-btn:hover {
-            box-shadow: 0 0 15px var(--neon-cyan);
-            transform: scale(1.05);
+            opacity: 0.88;
         }
 
         .footer-text {
-            font-size: 0.7rem;
-            color: var(--text-dim);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
             text-align: center;
             margin-top: 10px;
-            letter-spacing: 1px;
         }
     </style>
 </head>
@@ -305,12 +290,12 @@
 
     <aside>
         <div class="brand">
-            <div class="brand-orb"></div>
-            <span>SYNAPSE</span>
+            <div class="brand-icon"></div>
+            <span>Synapse</span>
         </div>
-        <button class="new-chat-btn" onclick="startNewChat()">+ New Session</button>
+        <button class="new-chat-btn" onclick="startNewChat()">+ New chat</button>
         <div class="chat-history">
-            <div class="history-title">Saved Neural Logs</div>
+            <div class="history-title">Recent</div>
             <div id="historyList"></div>
         </div>
     </aside>
@@ -319,16 +304,16 @@
         <div class="content-container">
             
             <div class="welcome-section" id="welcomeSection">
-                <h1 class="welcome-title">SYSTEM ONLINE</h1>
-                <h2 class="welcome-subtitle">Awaiting query parameters to execute neural tasks...</h2>
+                <h1 class="welcome-title">Good day</h1>
+                <h2 class="welcome-subtitle">Where would you like to begin?</h2>
             </div>
 
             <div class="cards-grid" id="cardsGrid">
-                <div class="card" onclick="sendPrompt('Explain quantum neural networks in simple terms')">
-                    <p class="card-text">Explain quantum neural networks in simple terms</p>
+                <div class="card" onclick="sendPrompt('Explain neural networks in simple terms')">
+                    <p class="card-text">Explain neural networks in simple terms</p>
                 </div>
-                <div class="card" onclick="sendPrompt('Write a futuristic Python script for automated telemetry analytics')">
-                    <p class="card-text">Write a futuristic Python script for automated telemetry analytics</p>
+                <div class="card" onclick="sendPrompt('Help me brainstorm ideas for a web app')">
+                    <p class="card-text">Help me brainstorm ideas for a web app</p>
                 </div>
             </div>
 
@@ -336,10 +321,12 @@
 
             <div>
                 <div class="input-container">
-                    <textarea class="input-box" id="userInput" placeholder="Transmit query..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
-                    <button class="send-btn" onclick="sendMessage()">➔</button>
+                    <textarea class="input-box" id="userInput" placeholder="How can Synapse help you today?" rows="1" onkeydown="handleKeyPress(event)"></textarea>
+                    <div class="input-controls">
+                        <button class="send-btn" onclick="sendMessage()">➔</button>
+                    </div>
                 </div>
-                <p class="footer-text">SYNAPSE NEURAL LINK // PERSISTENT STORAGE ACTIVE</p>
+                <p class="footer-text">Synapse can make mistakes. Verify important info.</p>
             </div>
 
         </div>
@@ -355,7 +342,6 @@
         let chatSessions = JSON.parse(localStorage.getItem('synapse_chats')) || [];
         let currentSessionId = null;
 
-        // Initialize history list on startup
         renderHistory();
 
         function handleKeyPress(event) {
@@ -378,19 +364,16 @@
             cardsGrid.style.display = 'none';
             messagesContainer.style.display = 'flex';
 
-            // Create new session if starting fresh
             if (!currentSessionId) {
                 currentSessionId = Date.now().toString();
                 chatSessions.unshift({ id: currentSessionId, title: text, messages: [] });
             }
 
-            // Append & store user message
             appendMessage(text, 'user');
             saveMessageToSession('user', text);
             userInput.value = '';
 
-            // AI loading indicator
-            appendMessage("Processing query...", 'ai');
+            appendMessage("Thinking...", 'ai');
             const aiMessages = messagesContainer.querySelectorAll('.message.ai .message-content');
             const loadingElement = aiMessages[aiMessages.length - 1];
 
@@ -405,18 +388,18 @@
                 let aiResponseText = "";
 
                 if (data.error) {
-                    aiResponseText = "System Error: " + data.error;
+                    aiResponseText = "Error: " + data.error;
                 } else if (data.candidates && data.candidates[0].content.parts[0].text) {
                     aiResponseText = data.candidates[0].content.parts[0].text;
                 } else {
-                    aiResponseText = "Error: Invalid data structure returned.";
+                    aiResponseText = "Error: Invalid response format.";
                 }
 
                 loadingElement.innerText = aiResponseText;
                 saveMessageToSession('ai', aiResponseText);
 
             } catch (err) {
-                loadingElement.innerText = "Error: Connection lost to neural backend.";
+                loadingElement.innerText = "Error connecting to serverless function.";
             }
 
             renderHistory();
