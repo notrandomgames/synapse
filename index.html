@@ -104,6 +104,7 @@
             border-radius: 50%;
             background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
             flex-shrink: 0;
+            transition: background 0.3s ease;
         }
 
         .toggle-sidebar-btn {
@@ -161,7 +162,7 @@
         }
 
         .search-box:focus {
-            border-color: rgba(255, 255, 255, 0.2);
+            border-color: var(--accent-blue);
         }
 
         .chat-history {
@@ -314,7 +315,7 @@
 
         .card:hover {
             background-color: var(--bg-card-hover);
-            border-color: rgba(255, 255, 255, 0.15);
+            border-color: var(--accent-warm);
         }
 
         .card-text {
@@ -355,6 +356,7 @@
             border-radius: 50%;
             flex-shrink: 0;
             margin-top: 2px;
+            transition: background 0.3s ease;
         }
 
         .message-content {
@@ -418,7 +420,7 @@
         }
 
         .input-container:focus-within {
-            border-color: rgba(255, 255, 255, 0.2);
+            border-color: var(--accent-warm);
         }
 
         .input-box {
@@ -455,23 +457,24 @@
         }
 
         .send-btn {
-            background: var(--text-primary);
+            background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
             border: none;
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            color: var(--bg-main);
+            color: #ffffff;
             font-weight: bold;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
             font-size: 0.85rem;
-            transition: opacity 0.2s;
+            transition: opacity 0.2s, transform 0.2s;
         }
 
         .send-btn:hover {
-            opacity: 0.88;
+            opacity: 0.9;
+            transform: scale(1.05);
         }
 
         .footer-text {
@@ -548,6 +551,11 @@
             border-radius: 6px;
             outline: none;
             cursor: pointer;
+            transition: border-color 0.2s;
+        }
+
+        .theme-btn:hover {
+            border-color: var(--accent-warm);
         }
 
         .danger-btn {
@@ -751,15 +759,34 @@
         const themeSelect = document.getElementById('themeSelect');
         const searchInput = document.getElementById('searchInput');
 
+        // Dozens of non-coding prompts across science, creative writing, history, philosophy, and fun scenarios
         const promptBank = [
-            "Explain neural networks in simple terms",
-            "Help me brainstorm ideas for a web app",
-            "Write a Python script to scrape website headlines",
-            "Summarize the key principles of modern UX design",
-            "Draft a professional follow-up email for a job interview",
-            "Compare SQL and NoSQL databases with pros and cons",
-            "Explain how serverless functions work in Netlify",
-            "Create a 3-day travel itinerary for Kyoto, Japan"
+            "If animals could talk, which species would be the rudest and why?",
+            "Explain quantum physics as if I am an 8-year-old",
+            "Write a short, suspenseful story about a forgotten lighthouse",
+            "What were the most unexpected turning points in WWII history?",
+            "How does the human brain physically create and recall memories?",
+            "Draft a balanced 7-day meal plan focusing on Mediterranean cuisine",
+            "Design an imaginative itinerary for a 4-day weekend trip to Iceland",
+            "What would happen to Earth's ecosystem if bees went extinct?",
+            "Help me outline a sci-fi novel about time travel through dreams",
+            "Explain how airplanes manage to fly using basic aerodynamic principles",
+            "What are the philosophical differences between Stoicism and Epicureanism?",
+            "Give me 5 creative themes for a themed birthday dinner party",
+            "How do deep sea creatures survive extreme ocean pressure and dark?",
+            "Write a persuasive speech arguing why art education is essential",
+            "What are some psychological tricks to improve focus and studying habits?",
+            "If humans colonized Mars, what would our daily routines look like?",
+            "Explain how coffee affects the brain and body on a chemical level",
+            "Create a list of unique names and backstories for a fantasy story character",
+            "What caused the fall of the Roman Empire, beyond military conflicts?",
+            "Give me 3 original recipe ideas using avocado, sweet potatoes, and black beans",
+            "Describe what life might look like in an underground city in 2150",
+            "How do telescopes catch light from galaxies billions of light-years away?",
+            "Draft a thoughtful review for a fictional movie about deep ocean exploration",
+            "What are the origin stories behind common everyday superstitions?",
+            "Explain the difference between weather and climate using simple analogies",
+            "Help me structure a 10-minute presentation on sustainable living ideas"
         ];
 
         let chatSessions = JSON.parse(localStorage.getItem('synapse_chats')) || [];
@@ -768,6 +795,14 @@
         const savedTheme = localStorage.getItem('synapse_theme') || 'dark';
         changeTheme(savedTheme);
         themeSelect.value = savedTheme;
+
+        // Restore custom accent theme if saved
+        const savedWarm = localStorage.getItem('synapse_accent_warm');
+        const savedBlue = localStorage.getItem('synapse_accent_blue');
+        if (savedWarm && savedBlue) {
+            document.documentElement.style.setProperty('--accent-warm', savedWarm);
+            document.documentElement.style.setProperty('--accent-blue', savedBlue);
+        }
 
         marked.setOptions({
             highlight: function(code, lang) {
@@ -803,10 +838,18 @@
         }
 
         function generateRandomAccent() {
-            const randomWarm = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-            const randomBlue = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-            document.documentElement.style.setProperty('--accent-warm', randomWarm);
-            document.documentElement.style.setProperty('--accent-blue', randomBlue);
+            // Generate vibrant HSL colors for better visual aesthetics
+            const hue1 = Math.floor(Math.random() * 360);
+            const hue2 = (hue1 + 120 + Math.floor(Math.random() * 120)) % 360;
+            
+            const color1 = `hsl(${hue1}, 80%, 55%)`;
+            const color2 = `hsl(${hue2}, 85%, 65%)`;
+
+            document.documentElement.style.setProperty('--accent-warm', color1);
+            document.documentElement.style.setProperty('--accent-blue', color2);
+
+            localStorage.setItem('synapse_accent_warm', color1);
+            localStorage.setItem('synapse_accent_blue', color2);
         }
 
         function openMobileSidebar() {
