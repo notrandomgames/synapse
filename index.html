@@ -759,7 +759,6 @@
         const themeSelect = document.getElementById('themeSelect');
         const searchInput = document.getElementById('searchInput');
 
-        // Dozens of non-coding prompts across science, creative writing, history, philosophy, and fun scenarios
         const promptBank = [
             "If animals could talk, which species would be the rudest and why?",
             "Explain quantum physics as if I am an 8-year-old",
@@ -796,7 +795,6 @@
         changeTheme(savedTheme);
         themeSelect.value = savedTheme;
 
-        // Restore custom accent theme if saved
         const savedWarm = localStorage.getItem('synapse_accent_warm');
         const savedBlue = localStorage.getItem('synapse_accent_blue');
         if (savedWarm && savedBlue) {
@@ -838,7 +836,6 @@
         }
 
         function generateRandomAccent() {
-            // Generate vibrant HSL colors for better visual aesthetics
             const hue1 = Math.floor(Math.random() * 360);
             const hue2 = (hue1 + 120 + Math.floor(Math.random() * 120)) % 360;
             
@@ -1006,7 +1003,11 @@
                 let aiResponseText = "";
 
                 if (data.error) {
-                    aiResponseText = "Error: " + data.error;
+                    if (data.error.includes("Quota exceeded") || data.error.includes("rate-limits")) {
+                        aiResponseText = "⚠️ Synapse is receiving too many requests right now. Please wait a minute before sending another prompt.";
+                    } else {
+                        aiResponseText = "Error: " + data.error;
+                    }
                 } else if (data.candidates && data.candidates[0].content.parts[0].text) {
                     aiResponseText = data.candidates[0].content.parts[0].text;
                 } else {
