@@ -33,7 +33,6 @@
             overflow: hidden;
         }
 
-        /* Sidebar Styling */
         aside {
             width: 260px;
             background-color: var(--bg-sidebar);
@@ -41,25 +40,14 @@
             flex-direction: column;
             padding: 16px;
             gap: 20px;
-            transition: transform 0.3s ease, margin-left 0.3s ease;
-        }
-
-        aside.collapsed {
-            margin-left: -260px;
         }
 
         .brand {
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            gap: 10px;
             font-size: 1.2rem;
             font-weight: 600;
-        }
-
-        .brand-logo {
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
         .brand-icon {
@@ -67,21 +55,6 @@
             height: 24px;
             background: var(--accent-gradient);
             border-radius: 50%;
-        }
-
-        .sidebar-toggle-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 4px 8px;
-            border-radius: 4px;
-        }
-
-        .sidebar-toggle-btn:hover {
-            background-color: var(--bg-card-hover);
-            color: var(--text-primary);
         }
 
         .new-chat-btn {
@@ -102,40 +75,6 @@
             background-color: #37393b;
         }
 
-        .chat-history {
-            flex: 1;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .history-title {
-            font-size: 0.75rem;
-            color: var(--text-secondary);
-            margin-bottom: 4px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .history-item {
-            padding: 8px 12px;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            transition: background 0.2s, color 0.2s;
-        }
-
-        .history-item:hover, .history-item.active {
-            background-color: var(--bg-card-hover);
-            color: var(--text-primary);
-        }
-
-        /* Main Workspace Styling */
         main {
             flex: 1;
             display: flex;
@@ -143,32 +82,6 @@
             justify-content: space-between;
             align-items: center;
             padding: 20px;
-            position: relative;
-        }
-
-        .top-bar {
-            width: 100%;
-            max-width: 800px;
-            display: flex;
-            align-items: center;
-            justify-content: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .open-sidebar-btn {
-            background: transparent;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.4rem;
-            cursor: pointer;
-            display: none;
-            padding: 6px;
-            border-radius: 6px;
-        }
-
-        .open-sidebar-btn:hover {
-            background-color: var(--bg-card);
-            color: var(--text-primary);
         }
 
         .content-container {
@@ -179,7 +92,6 @@
             height: 100%;
         }
 
-        /* Header Section */
         .welcome-section {
             margin-top: 40px;
             margin-bottom: 40px;
@@ -200,7 +112,6 @@
             color: #444746;
         }
 
-        /* Suggestions Cards */
         .cards-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -217,7 +128,7 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            min-height: 140px;
+            min-height: 120px;
         }
 
         .card:hover {
@@ -231,7 +142,6 @@
             line-height: 1.4;
         }
 
-        /* Chat Area */
         .messages-container {
             flex: 1;
             overflow-y: auto;
@@ -270,7 +180,6 @@
             white-space: pre-wrap;
         }
 
-        /* Input Container */
         .input-container {
             width: 100%;
             background-color: var(--bg-input);
@@ -279,29 +188,6 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            border: 1px solid transparent;
-            transition: border-color 0.2s;
-        }
-
-        .input-container:focus-within {
-            border-color: #444746;
-        }
-
-        .attachment-preview {
-            display: none;
-            align-items: center;
-            gap: 8px;
-            background: #2b2c2e;
-            padding: 6px 12px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            width: fit-content;
-            color: var(--accent-blue);
-        }
-
-        .attachment-preview span {
-            cursor: pointer;
-            color: var(--text-secondary);
         }
 
         .input-box {
@@ -313,36 +199,12 @@
             font-size: 1rem;
             resize: none;
             height: 24px;
-            max-height: 150px;
         }
 
         .input-controls {
             display: flex;
-            justify-content: space-between;
+            justify-content: flex-end;
             align-items: center;
-        }
-
-        .input-tools {
-            display: flex;
-            gap: 12px;
-            color: var(--text-secondary);
-            font-size: 1.2rem;
-            cursor: pointer;
-        }
-
-        .tool-btn {
-            background: none;
-            border: none;
-            color: var(--text-secondary);
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 2px 6px;
-            border-radius: 50%;
-            transition: color 0.2s;
-        }
-
-        .tool-btn:hover {
-            color: var(--text-primary);
         }
 
         .send-btn {
@@ -351,15 +213,6 @@
             color: var(--accent-blue);
             cursor: pointer;
             font-size: 1.2rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 4px;
-            border-radius: 50%;
-        }
-
-        .send-btn:hover {
-            background-color: #2b2c2e;
         }
 
         .footer-text {
@@ -368,82 +221,42 @@
             text-align: center;
             margin-top: 12px;
         }
-
-        /* Hidden File Input */
-        #fileInput {
-            display: none;
-        }
     </style>
 </head>
 <body>
 
-    <!-- Sidebar -->
-    <aside id="sidebar">
+    <aside>
         <div class="brand">
-            <div class="brand-logo">
-                <div class="brand-icon"></div>
-                <span>Synapse</span>
-            </div>
-            <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse Sidebar">☰</button>
+            <div class="brand-icon"></div>
+            <span>Synapse</span>
         </div>
-        <button class="new-chat-btn" onclick="resetChat()">
-            <span>+</span> New Chat
-        </button>
-        <div class="chat-history">
-            <div class="history-title">Recent</div>
-            <div class="history-item" onclick="loadHistoryChat('Quantum Computing Basics', 'Quantum computing uses quantum bits or qubits, which can exist in multiple states simultaneously due to superposition...')">Quantum Computing Basics</div>
-            <div class="history-item" onclick="loadHistoryChat('JavaScript Async/Await', 'Async/await syntax simplifies writing asynchronous JavaScript promises by making code look synchronous...')">JavaScript Async/Await</div>
-            <div class="history-item" onclick="loadHistoryChat('UI/UX Color Themes', 'Effective dark mode UI relies on muted surface colors rather than pure black (#000000) to reduce eye strain...')">UI/UX Color Themes</div>
-        </div>
+        <button class="new-chat-btn" onclick="resetChat()">+ New Chat</button>
     </aside>
 
-    <!-- Main Workspace -->
     <main>
-        <div class="top-bar">
-            <button class="open-sidebar-btn" id="openSidebarBtn" onclick="toggleSidebar()" title="Expand Sidebar">☰</button>
-        </div>
-
         <div class="content-container">
             
-            <!-- Welcome Header -->
             <div class="welcome-section" id="welcomeSection">
                 <h1 class="welcome-title">Hello, Explorer</h1>
                 <h2 class="welcome-subtitle">How can Synapse help you today?</h2>
             </div>
 
-            <!-- Suggestion Cards -->
             <div class="cards-grid" id="cardsGrid">
-                <div class="card" onclick="sendPrompt('Help me brainstorm ideas for a modern web app')">
-                    <p class="card-text">Help me brainstorm ideas for a modern web app</p>
-                </div>
                 <div class="card" onclick="sendPrompt('Explain neural networks in simple terms')">
                     <p class="card-text">Explain neural networks in simple terms</p>
                 </div>
-                <div class="card" onclick="sendPrompt('Write a Python script to scrape website data')">
-                    <p class="card-text">Write a Python script to scrape website data</p>
-                </div>
-                <div class="card" onclick="sendPrompt('Draft an email proposing a new project')">
-                    <p class="card-text">Draft an email proposing a new project</p>
+                <div class="card" onclick="sendPrompt('Help me brainstorm ideas for a modern web app')">
+                    <p class="card-text">Help me brainstorm ideas for a modern web app</p>
                 </div>
             </div>
 
-            <!-- Messages Container -->
             <div class="messages-container" id="messagesContainer" style="display: none;"></div>
 
-            <!-- Input Bar -->
             <div>
                 <div class="input-container">
-                    <div class="attachment-preview" id="attachmentPreview">
-                        <span id="attachmentName">file.txt</span>
-                        <span onclick="removeAttachment()">✕</span>
-                    </div>
                     <textarea class="input-box" id="userInput" placeholder="Enter a prompt here..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
                     <div class="input-controls">
-                        <div class="input-tools">
-                            <button class="tool-btn" onclick="triggerFileUpload()" title="Attach file">+</button>
-                            <input type="file" id="fileInput" onchange="handleFileSelect(event)">
-                        </div>
-                        <button class="send-btn" onclick="sendMessage()" title="Send Message">➔</button>
+                        <button class="send-btn" onclick="sendMessage()">➔</button>
                     </div>
                 </div>
                 <p class="footer-text">Synapse may display inaccurate info, so double-check its responses.</p>
@@ -453,35 +266,11 @@
     </main>
 
     <script>
-        const sidebar = document.getElementById('sidebar');
-        const openSidebarBtn = document.getElementById('openSidebarBtn');
         const welcomeSection = document.getElementById('welcomeSection');
         const cardsGrid = document.getElementById('cardsGrid');
         const messagesContainer = document.getElementById('messagesContainer');
         const userInput = document.getElementById('userInput');
-        const fileInput = document.getElementById('fileInput');
-        const attachmentPreview = document.getElementById('attachmentPreview');
-        const attachmentName = document.getElementById('attachmentName');
 
-        let selectedFile = null;
-
-        // Auto-expand textarea
-        userInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = (this.scrollHeight - 16) + 'px';
-        });
-
-        // Sidebar Toggle Handler
-        function toggleSidebar() {
-            sidebar.classList.toggle('collapsed');
-            if (sidebar.classList.contains('collapsed')) {
-                openSidebarBtn.style.display = 'block';
-            } else {
-                openSidebarBtn.style.display = 'none';
-            }
-        }
-
-        // Keypress handler (Enter to send)
         function handleKeyPress(event) {
             if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault();
@@ -489,100 +278,62 @@
             }
         }
 
-        // File attachment handlers
-        function triggerFileUpload() {
-            fileInput.click();
-        }
-
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                selectedFile = file;
-                attachmentName.textContent = file.name;
-                attachmentPreview.style.display = 'flex';
-            }
-        }
-
-        function removeAttachment() {
-            selectedFile = null;
-            fileInput.value = '';
-            attachmentPreview.style.display = 'none';
-        }
-
-        // Prompt Card Click Handler
         function sendPrompt(promptText) {
             userInput.value = promptText;
             sendMessage();
         }
 
-        // Main Send Message Handler
-        function sendMessage() {
+        async function sendMessage() {
             const text = userInput.value.trim();
-            if (!text && !selectedFile) return;
+            if (!text) return;
 
             welcomeSection.style.display = 'none';
             cardsGrid.style.display = 'none';
             messagesContainer.style.display = 'flex';
 
-            let userContent = text;
-            if (selectedFile) {
-                userContent += `\n\n📎 [Attached File: ${selectedFile.name}]`;
-            }
-
-            appendMessage(userContent, 'user');
-
-            // Reset inputs
+            appendMessage(text, 'user');
             userInput.value = '';
-            userInput.style.height = '24px';
-            removeAttachment();
 
-            // Simulate AI Response
-            setTimeout(() => {
-                const responseText = `This is a response from **Synapse** AI.\n\nI have received your message: "${text}". How would you like to proceed?`;
-                appendMessage(responseText, 'ai');
-            }, 800);
+            appendMessage("Synapse is thinking...", 'ai');
+            const aiMessages = messagesContainer.querySelectorAll('.message.ai .message-content');
+            const loadingElement = aiMessages[aiMessages.length - 1];
+
+            try {
+                const response = await fetch('/.netlify/functions/gemini', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt: text })
+                });
+
+                const data = await response.json();
+
+                if (data.error) {
+                    loadingElement.innerText = "Error: " + data.error;
+                } else if (data.candidates && data.candidates[0].content.parts[0].text) {
+                    loadingElement.innerText = data.candidates[0].content.parts[0].text;
+                } else {
+                    loadingElement.innerText = "Received an unexpected response format from Gemini.";
+                }
+            } catch (err) {
+                loadingElement.innerText = "Failed to communicate with Netlify function.";
+            }
         }
 
-        // Append message to UI
         function appendMessage(text, sender) {
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender);
-
-            if (sender === 'ai') {
-                messageDiv.innerHTML = `
-                    <div class="avatar"></div>
-                    <div class="message-content">${text}</div>
-                `;
-            } else {
-                messageDiv.innerHTML = `
-                    <div class="message-content">${text}</div>
-                `;
-            }
-
+            messageDiv.innerHTML = sender === 'ai' 
+                ? `<div class="avatar"></div><div class="message-content">${text}</div>`
+                : `<div class="message-content">${text}</div>`;
             messagesContainer.appendChild(messageDiv);
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Sidebar History Item Click Handler
-        function loadHistoryChat(title, mockResponse) {
-            welcomeSection.style.display = 'none';
-            cardsGrid.style.display = 'none';
-            messagesContainer.style.display = 'flex';
-            messagesContainer.innerHTML = '';
-
-            appendMessage(`Tell me about ${title}`, 'user');
-            appendMessage(mockResponse, 'ai');
-        }
-
-        // New Chat Reset Handler
         function resetChat() {
             messagesContainer.innerHTML = '';
             messagesContainer.style.display = 'none';
             welcomeSection.style.display = 'block';
             cardsGrid.style.display = 'grid';
-            userInput.value = '';
-            userInput.style.height = '24px';
-            removeAttachment();
         }
     </script>
 </body>
