@@ -14,11 +14,12 @@ exports.handler = async (event) => {
             };
         }
 
-        // List models in order of preference
+        // Updated array with currently supported active models
         const models = [
             "gemini-3.6-flash",
             "gemini-2.5-flash",
-            "gemini-1.5-flash"
+            "gemini-2.5-pro",
+            "gemini-2.0-flash"
         ];
 
         let lastError = null;
@@ -38,7 +39,7 @@ exports.handler = async (event) => {
 
                 const data = await response.json();
 
-                // If the model succeeds without returning an API error
+                // If successful
                 if (!data.error) {
                     return {
                         statusCode: 200,
@@ -46,7 +47,6 @@ exports.handler = async (event) => {
                     };
                 }
 
-                // Save the error and continue loop to try the next model
                 lastError = data.error.message || `Error calling ${model}`;
                 console.warn(`Model ${model} failed, attempting next fallback model. Error:`, lastError);
 
@@ -56,7 +56,7 @@ exports.handler = async (event) => {
             }
         }
 
-        // If all models failed
+        // If all models in the fallback array failed
         return {
             statusCode: 400,
             body: JSON.stringify({ error: `All fallback models failed. Last error: ${lastError}` })
