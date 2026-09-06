@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Synapse AI</title>
+    <style>
+        :root {
+            --bg-main: #131314;
+            --bg-sidebar: #1e1f20;
+            --bg-card: #1e1f20;
+            --bg-card-hover: #2a2b2d;
+            --bg-input: #1e1f20;
+            --text-primary: #e3e3e3;
+            --text-secondary: #c4c7c5;
+            --accent-blue: #a8c7fa;
+            --accent-gradient: linear-gradient(135deg, #7cacf8, #c58af9, #d96570);
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: var(--font-family);
+        }
+
+        body {
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+            display: flex;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Sidebar Styling */
+        aside {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            display: flex;
+            flex-direction: column;
+            padding: 16px;
+            gap: 20px;
+            transition: transform 0.3s ease, margin-left 0.3s ease;
+        }
+
+        aside.collapsed {
+            margin-left: -260px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .brand-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .brand-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+        }
+
+        .sidebar-toggle-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background-color: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        .new-chat-btn {
+            background-color: #2b2c2e;
+            color: var(--text-primary);
+            border: none;
+            padding: 12px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .new-chat-btn:hover {
+            background-color: #37393b;
+        }
+
+        .chat-history {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .history-title {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .history-item {
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .history-item:hover, .history-item.active {
+            background-color: var(--bg-card-hover);
+            color: var(--text-primary);
+        }
+
+        /* Main Workspace Styling */
+        main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px;
+            position: relative;
+        }
+
+        .top-bar {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .open-sidebar-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.4rem;
+            cursor: pointer;
+            display: none;
+            padding: 6px;
+            border-radius: 6px;
+        }
+
+        .open-sidebar-btn:hover {
+            background-color: var(--bg-card);
+            color: var(--text-primary);
+        }
+
+        .content-container {
+            width: 100%;
+            max-width: 800px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+
+        /* Header Section */
+        .welcome-section {
+            margin-top: 40px;
+            margin-bottom: 40px;
+        }
+
+        .welcome-title {
+            font-size: 3rem;
+            font-weight: 500;
+            background: var(--accent-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 8px;
+        }
+
+        .welcome-subtitle {
+            font-size: 3rem;
+            font-weight: 500;
+            color: #444746;
+        }
+
+        /* Suggestions Cards */
+        .cards-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: auto;
+        }
+
+        .card {
+            background-color: var(--bg-card);
+            padding: 16px;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.2s;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 140px;
+        }
+
+        .card:hover {
+            background-color: var(--bg-card-hover);
+            transform: translateY(-2px);
+        }
+
+        .card-text {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        /* Chat Area */
+        .messages-container {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            margin-bottom: 20px;
+            padding-right: 10px;
+        }
+
+        .message {
+            display: flex;
+            gap: 16px;
+            line-height: 1.6;
+        }
+
+        .message.user .message-content {
+            background-color: #282a2c;
+            padding: 12px 16px;
+            border-radius: 18px;
+            max-width: 80%;
+            margin-left: auto;
+        }
+
+        .message.ai .avatar {
+            width: 28px;
+            height: 28px;
+            background: var(--accent-gradient);
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            white-space: pre-wrap;
+        }
+
+        /* Input Container */
+        .input-container {
+            width: 100%;
+            background-color: var(--bg-input);
+            border-radius: 28px;
+            padding: 12px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border: 1px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .input-container:focus-within {
+            border-color: #444746;
+        }
+
+        .attachment-preview {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            background: #2b2c2e;
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            width: fit-content;
+            color: var(--accent-blue);
+        }
+
+        .attachment-preview span {
+            cursor: pointer;
+            color: var(--text-secondary);
+        }
+
+        .input-box {
+            width: 100%;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: var(--text-primary);
+            font-size: 1rem;
+            resize: none;
+            height: 24px;
+            max-height: 150px;
+        }
+
+        .input-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .input-tools {
+            display: flex;
+            gap: 12px;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+
+        .tool-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 50%;
+            transition: color 0.2s;
+        }
+
+        .tool-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .send-btn {
+            background: transparent;
+            border: none;
+            color: var(--accent-blue);
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 4px;
+            border-radius: 50%;
+        }
+
+        .send-btn:hover {
+            background-color: #2b2c2e;
+        }
+
+        .footer-text {
+            font-size: 0.75rem;
+            color: #8e918f;
+            text-align: center;
+            margin-top: 12px;
+        }
+
+        /* Hidden File Input */
+        #fileInput {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Sidebar -->
+    <aside id="sidebar">
+        <div class="brand">
+            <div class="brand-logo">
+                <div class="brand-icon"></div>
+                <span>Synapse</span>
+            </div>
+            <button class="sidebar-toggle-btn" onclick="toggleSidebar()" title="Collapse Sidebar">☰</button>
+        </div>
+        <button class="new-chat-btn" onclick="resetChat()">
+            <span>+</span> New Chat
+        </button>
+        <div class="chat-history">
+            <div class="history-title">Recent</div>
+            <div class="history-item" onclick="loadHistoryChat('Quantum Computing Basics', 'Quantum computing uses quantum bits or qubits, which can exist in multiple states simultaneously due to superposition...')">Quantum Computing Basics</div>
+            <div class="history-item" onclick="loadHistoryChat('JavaScript Async/Await', 'Async/await syntax simplifies writing asynchronous JavaScript promises by making code look synchronous...')">JavaScript Async/Await</div>
+            <div class="history-item" onclick="loadHistoryChat('UI/UX Color Themes', 'Effective dark mode UI relies on muted surface colors rather than pure black (#000000) to reduce eye strain...')">UI/UX Color Themes</div>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main>
+        <div class="top-bar">
+            <button class="open-sidebar-btn" id="openSidebarBtn" onclick="toggleSidebar()" title="Expand Sidebar">☰</button>
+        </div>
+
+        <div class="content-container">
+            
+            <!-- Welcome Header -->
+            <div class="welcome-section" id="welcomeSection">
+                <h1 class="welcome-title">Hello, Explorer</h1>
+                <h2 class="welcome-subtitle">How can Synapse help you today?</h2>
+            </div>
+
+            <!-- Suggestion Cards -->
+            <div class="cards-grid" id="cardsGrid">
+                <div class="card" onclick="sendPrompt('Help me brainstorm ideas for a modern web app')">
+                    <p class="card-text">Help me brainstorm ideas for a modern web app</p>
+                </div>
+                <div class="card" onclick="sendPrompt('Explain neural networks in simple terms')">
+                    <p class="card-text">Explain neural networks in simple terms</p>
+                </div>
+                <div class="card" onclick="sendPrompt('Write a Python script to scrape website data')">
+                    <p class="card-text">Write a Python script to scrape website data</p>
+                </div>
+                <div class="card" onclick="sendPrompt('Draft an email proposing a new project')">
+                    <p class="card-text">Draft an email proposing a new project</p>
+                </div>
+            </div>
+
+            <!-- Messages Container -->
+            <div class="messages-container" id="messagesContainer" style="display: none;"></div>
+
+            <!-- Input Bar -->
+            <div>
+                <div class="input-container">
+                    <div class="attachment-preview" id="attachmentPreview">
+                        <span id="attachmentName">file.txt</span>
+                        <span onclick="removeAttachment()">✕</span>
+                    </div>
+                    <textarea class="input-box" id="userInput" placeholder="Enter a prompt here..." rows="1" onkeydown="handleKeyPress(event)"></textarea>
+                    <div class="input-controls">
+                        <div class="input-tools">
+                            <button class="tool-btn" onclick="triggerFileUpload()" title="Attach file">+</button>
+                            <input type="file" id="fileInput" onchange="handleFileSelect(event)">
+                        </div>
+                        <button class="send-btn" onclick="sendMessage()" title="Send Message">➔</button>
+                    </div>
+                </div>
+                <p class="footer-text">Synapse may display inaccurate info, so double-check its responses.</p>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const sidebar = document.getElementById('sidebar');
+        const openSidebarBtn = document.getElementById('openSidebarBtn');
+        const welcomeSection = document.getElementById('welcomeSection');
+        const cardsGrid = document.getElementById('cardsGrid');
+        const messagesContainer = document.getElementById('messagesContainer');
+        const userInput = document.getElementById('userInput');
+        const fileInput = document.getElementById('fileInput');
+        const attachmentPreview = document.getElementById('attachmentPreview');
+        const attachmentName = document.getElementById('attachmentName');
+
+        let selectedFile = null;
+
+        // Auto-expand textarea
+        userInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = (this.scrollHeight - 16) + 'px';
+        });
+
+        // Sidebar Toggle Handler
+        function toggleSidebar() {
+            sidebar.classList.toggle('collapsed');
+            if (sidebar.classList.contains('collapsed')) {
+                openSidebarBtn.style.display = 'block';
+            } else {
+                openSidebarBtn.style.display = 'none';
+            }
+        }
+
+        // Keypress handler (Enter to send)
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        // File attachment handlers
+        function triggerFileUpload() {
+            fileInput.click();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (file) {
+                selectedFile = file;
+                attachmentName.textContent = file.name;
+                attachmentPreview.style.display = 'flex';
+            }
+        }
+
+        function removeAttachment() {
+            selectedFile = null;
+            fileInput.value = '';
+            attachmentPreview.style.display = 'none';
+        }
+
+        // Prompt Card Click Handler
+        function sendPrompt(promptText) {
+            userInput.value = promptText;
+            sendMessage();
+        }
+
+        // Main Send Message Handler
+        function sendMessage() {
+            const text = userInput.value.trim();
+            if (!text && !selectedFile) return;
+
+            welcomeSection.style.display = 'none';
+            cardsGrid.style.display = 'none';
+            messagesContainer.style.display = 'flex';
+
+            let userContent = text;
+            if (selectedFile) {
+                userContent += `\n\n📎 [Attached File: ${selectedFile.name}]`;
+            }
+
+            appendMessage(userContent, 'user');
+
+            // Reset inputs
+            userInput.value = '';
+            userInput.style.height = '24px';
+            removeAttachment();
+
+            // Simulate AI Response
+            setTimeout(() => {
+                const responseText = `This is a response from **Synapse** AI.\n\nI have received your message: "${text}". How would you like to proceed?`;
+                appendMessage(responseText, 'ai');
+            }, 800);
+        }
+
+        // Append message to UI
+        function appendMessage(text, sender) {
+            const messageDiv = document.createElement('div');
+            messageDiv.classList.add('message', sender);
+
+            if (sender === 'ai') {
+                messageDiv.innerHTML = `
+                    <div class="avatar"></div>
+                    <div class="message-content">${text}</div>
+                `;
+            } else {
+                messageDiv.innerHTML = `
+                    <div class="message-content">${text}</div>
+                `;
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Sidebar History Item Click Handler
+        function loadHistoryChat(title, mockResponse) {
+            welcomeSection.style.display = 'none';
+            cardsGrid.style.display = 'none';
+            messagesContainer.style.display = 'flex';
+            messagesContainer.innerHTML = '';
+
+            appendMessage(`Tell me about ${title}`, 'user');
+            appendMessage(mockResponse, 'ai');
+        }
+
+        // New Chat Reset Handler
+        function resetChat() {
+            messagesContainer.innerHTML = '';
+            messagesContainer.style.display = 'none';
+            welcomeSection.style.display = 'block';
+            cardsGrid.style.display = 'grid';
+            userInput.value = '';
+            userInput.style.height = '24px';
+            removeAttachment();
+        }
+    </script>
+</body>
+</html>
