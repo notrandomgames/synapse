@@ -9,7 +9,7 @@ app.use(express.json({ limit: '10mb' }));
 // Serve static frontend files (index.html, styles, client JS)
 app.use(express.static(__dirname));
 
-// Backend proxy endpoint for Gemini API
+// Streaming backend proxy endpoint for Gemini API
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, imageBase64, mimeType } = req.body;
@@ -19,15 +19,10 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: "Missing API key in environment variables." });
         }
 
-        const models = [
-            "gemini-3.6-flash",
-            "gemini-3.5-flash",
-            "gemini-3.5-flash-lite"
-        ];
+        // Set headers for streaming plain text chunks back to client
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        res.setHeader('Transfer-Encoding', 'chunked');
 
-        let lastError = null;
-
-        // Build Gemini multimodal request contents payload
         const parts = [];
         if (imageBase64 && mimeType) {
             parts.push({
@@ -39,36 +34,67 @@ app.post('/api/gemini', async (req, res) => {
         }
         parts.push({ text: prompt || "Analyze this image." });
 
-        const payload = { contents: [{ parts }] };
-
-        for (const model of models) {
-            try {
-                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                const data = await response.json();
-
-                if (!data.error) {
-                    return res.json(data);
+        const payload = {
+            contents: [{ parts }],
+            generationConfig: {
+                thinkingConfig: {
+                    thinkingBudget: 0 // Set to 0 for ultra-fast stream output
                 }
+            }
+        };
 
-                lastError = data.error.message || `Error calling ${model}`;
-                console.warn(`Model ${model} failed:`, lastError);
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${API_KEY}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-            } catch (err) {
-                lastError = err.message;
+        if (!response.ok) {
+            const errorData = await response.json();
+            res.status(response.status);
+            res.write(`Error: ${errorData.error?.message || 'Failed to stream response.'}`);
+            return res.end();
+        }
+
+        // Read stream chunks from Gemini and pipe them directly to the client response
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const rawChunk = decoder.decode(value, { stream: true });
+
+            // Parse Google SSE JSON objects to extract generated text parts
+            const lines = rawChunk.split('\n');
+            for (const line of lines) {
+                if (line.startsWith('[') || line.startsWith(',')) {
+                    try {
+                        const cleanLine = line.replace(/^[,\[\]]/, '').trim();
+                        if (cleanLine) {
+                            const parsed = JSON.parse(cleanLine);
+                            const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                            if (textChunk) {
+                                res.write(textChunk);
+                            }
+                        }
+                    } catch (e) {
+                        // Skip incomplete JSON lines across chunk boundaries
+                    }
+                }
             }
         }
 
-        return res.status(429).json({ 
-            error: `Quota exceeded or rate limit reached on Free Tier. (${lastError})` 
-        });
+        res.end();
 
     } catch (error) {
-        return res.status(500).json({ error: error.message });
+        if (!res.headersSent) {
+            res.status(500).json({ error: error.message });
+        } else {
+            res.write(`\nError: ${error.message}`);
+            res.end();
+        }
     }
 });
 
