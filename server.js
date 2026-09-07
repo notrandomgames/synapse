@@ -3,13 +3,18 @@ const path = require('path');
 
 const app = express();
 
+// Increase JSON limit for base64 image payloads
 app.use(express.json({ limit: '10mb' }));
+
+// Serve static frontend assets
 app.use(express.static(__dirname));
 
+// Stream endpoint with accuracy controls, context history, and multi-key rotation
 app.post('/api/gemini', async (req, res) => {
     try {
-        const { prompt, imageBase64, mimeType } = req.body;
+        const { prompt, history, imageBase64, mimeType } = req.body;
 
+        // Parse keys from comma-separated string or single fallback variable
         const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -17,28 +22,37 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: "Missing GEMINI_API_KEYS environment variable." });
         }
 
-        console.log(`[Synapse] Loaded ${apiKeys.length} API key(s) from environment.`);
+        // Format conversation history for Gemini API context
+        const contents = Array.isArray(history) ? [...history] : [];
+        const currentParts = [];
 
-        const parts = [];
         if (imageBase64 && mimeType) {
-            parts.push({
+            currentParts.push({
                 inlineData: { mimeType, data: imageBase64 }
             });
         }
-        parts.push({ text: prompt || "Analyze this image." });
+        currentParts.push({ text: prompt || "Analyze this image." });
+        contents.push({ role: 'user', parts: currentParts });
 
+        // High-accuracy API configuration
         const payload = {
             systemInstruction: {
-                parts: [{ text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly and accurately." }]
+                parts: [{ 
+                    text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." 
+                }]
             },
-            contents: [{ parts }],
-            generationConfig: { temperature: 0.1, topP: 0.8 }
+            contents: contents,
+            tools: [{ googleSearch: {} }], // Real-time web search grounding
+            generationConfig: {
+                temperature: 0.1, // Near-zero temperature minimizes hallucinations
+                topP: 0.8
+            }
         };
 
         // Active Gemini models
         const models = [
-            "gemini-3.8-flash",
-            "gemini-3.7-flash",
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
             "gemini-3.5-flash-lite"
         ];
 
@@ -59,18 +73,17 @@ app.post('/api/gemini', async (req, res) => {
 
                     if (resp.ok) {
                         geminiResponse = resp;
-                        console.log(`[Success] Key #${keyIndex + 1} connected using model: ${model}`);
+                        console.log(`[Success] Key #${keyIndex + 1} connected via ${model}`);
                         break keyLoop;
                     }
 
                     const status = resp.status;
                     const errText = await resp.text();
                     lastError = `Key #${keyIndex + 1} on ${model} [${status}]: ${errText}`;
-                    console.warn(`[API Warn] ${lastError}`);
+                    console.warn(`[API Warning] ${lastError}`);
 
                     if (status === 429) {
-                        // Rate limit on this key, jump directly to next API key
-                        break;
+                        break; // Rate limit hit: switch to next key immediately
                     }
                 } catch (err) {
                     console.error(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
@@ -80,12 +93,13 @@ app.post('/api/gemini', async (req, res) => {
         }
 
         if (!geminiResponse) {
-            console.error(`[Final Failure] All keys failed. Last detail: ${lastError}`);
+            console.error(`[Failure] All keys failed. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All provided API keys have temporarily reached their free tier rate limits. Please try again in 30 seconds." 
+                error: "All provided API keys have temporarily reached their free tier quota. Please wait 30 seconds." 
             });
         }
 
+        // Set streaming headers after verifying 200 OK connection
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
