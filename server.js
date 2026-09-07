@@ -3,18 +3,13 @@ const path = require('path');
 
 const app = express();
 
-// Handle base64 image uploads
 app.use(express.json({ limit: '10mb' }));
-
-// Serve static frontend files
 app.use(express.static(__dirname));
 
-// Streaming endpoint with Fixed Multi-Key & Model Fallback
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, imageBase64, mimeType } = req.body;
 
-        // Parse multiple API keys from comma-separated string or single key fallback
         const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -22,43 +17,34 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: "Missing GEMINI_API_KEYS environment variable." });
         }
 
-        console.log(`[Synapse] Processing request with ${apiKeys.length} available API key(s)...`);
+        console.log(`[Synapse] Loaded ${apiKeys.length} API key(s) from environment.`);
 
         const parts = [];
         if (imageBase64 && mimeType) {
             parts.push({
-                inlineData: {
-                    mimeType: mimeType,
-                    data: imageBase64
-                }
+                inlineData: { mimeType, data: imageBase64 }
             });
         }
         parts.push({ text: prompt || "Analyze this image." });
 
         const payload = {
             systemInstruction: {
-                parts: [{ 
-                    text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, double-check logic step-by-step, and do not invent details." 
-                }]
+                parts: [{ text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly and accurately." }]
             },
             contents: [{ parts }],
-            generationConfig: {
-                temperature: 0.1,
-                topP: 0.8
-            }
+            generationConfig: { temperature: 0.1, topP: 0.8 }
         };
 
-        // Active Gemini models hierarchy
+        // Active Gemini models
         const models = [
-            "gemini-2.5-flash",
-            "gemini-1.5-flash",
-            "gemini-2.5-flash-lite"
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash-lite"
         ];
 
         let geminiResponse = null;
-        let lastError = null;
+        let lastError = "";
 
-        // Loop through keys and fallback models
         keyLoop:
         for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
             const currentKey = apiKeys[keyIndex];
@@ -73,38 +59,33 @@ app.post('/api/gemini', async (req, res) => {
 
                     if (resp.ok) {
                         geminiResponse = resp;
-                        console.log(`[Success] Connected using Key #${keyIndex + 1} with model ${model}`);
-                        break keyLoop; // Successfully connected, break out of all loops
+                        console.log(`[Success] Key #${keyIndex + 1} connected using model: ${model}`);
+                        break keyLoop;
                     }
 
                     const status = resp.status;
                     const errText = await resp.text();
+                    lastError = `Key #${keyIndex + 1} on ${model} [${status}]: ${errText}`;
+                    console.warn(`[API Warn] ${lastError}`);
 
                     if (status === 429) {
-                        console.warn(`[429 Quota Exceeded] Key #${keyIndex + 1} rate limited on ${model}. Switching to next key...`);
-                        lastError = `API Key #${keyIndex + 1} exhausted quota.`;
-                        break; // Rate limit hit: break model loop to try the next API key immediately
+                        // Rate limit on this key, jump directly to next API key
+                        break;
                     }
-
-                    // For non-429 errors (e.g. 404/400), log and continue to next model for the SAME key
-                    console.warn(`[${status} Error] Key #${keyIndex + 1} on ${model}: ${errText}`);
-                    lastError = `Model ${model} (${status}): ${errText}`;
-
                 } catch (err) {
-                    console.warn(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
+                    console.error(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
                     lastError = err.message;
                 }
             }
         }
 
         if (!geminiResponse) {
-            console.error(`[Failure] All ${apiKeys.length} API keys failed across all models. Last error: ${lastError}`);
+            console.error(`[Final Failure] All keys failed. Last detail: ${lastError}`);
             return res.status(429).json({ 
                 error: "All provided API keys have temporarily reached their free tier rate limits. Please try again in 30 seconds." 
             });
         }
 
-        // Set streaming headers after confirming connection
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
@@ -129,23 +110,10 @@ app.post('/api/gemini', async (req, res) => {
                     try {
                         const parsed = JSON.parse(jsonStr);
                         const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                        if (textChunk) {
-                            res.write(textChunk);
-                        }
+                        if (textChunk) res.write(textChunk);
                     } catch (e) {}
                 }
             }
-        }
-
-        if (buffer.trim().startsWith('data:')) {
-            const jsonStr = buffer.trim().slice(5).trim();
-            try {
-                const parsed = JSON.parse(jsonStr);
-                const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (textChunk) {
-                    res.write(textChunk);
-                }
-            } catch (e) {}
         }
 
         res.end();
@@ -160,12 +128,9 @@ app.post('/api/gemini', async (req, res) => {
     }
 });
 
-// Fallback route to serve index.html
 app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`Synapse server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Synapse server running on port ${PORT}`));
