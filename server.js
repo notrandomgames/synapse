@@ -104,7 +104,7 @@ app.post('/api/gemini', async (req, res) => {
 
         if (!geminiResponse) {
             return res.status(429).json({ 
-                error: "Free Tier Rate Limit reached. Please wait 30 seconds before sending another prompt." 
+                error: "Rate Limit reached. Please wait 30 seconds before sending another prompt." 
             });
         }
 
