@@ -96,15 +96,18 @@
             align-items: center;
             gap: 10px;
             overflow: hidden;
+            cursor: pointer;
         }
 
-        .brand-icon {
-            width: 20px;
-            height: 20px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
+        .brand-svg-logo {
             flex-shrink: 0;
-            transition: background 0.3s ease;
+            filter: drop-shadow(0 0 6px rgba(217, 119, 6, 0.4));
+            transition: filter 0.3s ease, transform 0.2s ease;
+        }
+
+        .brand-logo:hover .brand-svg-logo {
+            transform: scale(1.1);
+            filter: drop-shadow(0 0 10px rgba(168, 199, 250, 0.6));
         }
 
         .toggle-sidebar-btn {
@@ -191,7 +194,6 @@
             padding-left: 4px;
         }
 
-        /* Enhanced Chat Item Controls */
         .history-item {
             padding: 8px 10px;
             border-radius: 6px;
@@ -203,7 +205,6 @@
             justify-content: space-between;
             gap: 6px;
             transition: background 0.2s, color 0.2s;
-            group: relative;
         }
 
         .history-item:hover, .history-item.active {
@@ -386,14 +387,9 @@
             margin-left: auto;
         }
 
-        .message.ai .avatar {
-            width: 26px;
-            height: 26px;
-            background: linear-gradient(135deg, var(--accent-warm), var(--accent-blue));
-            border-radius: 50%;
+        .message.ai .avatar-svg {
             flex-shrink: 0;
             margin-top: 2px;
-            transition: background 0.3s ease;
         }
 
         .message-content {
@@ -629,8 +625,24 @@
 
     <aside id="sidebar">
         <div class="brand">
-            <div class="brand-logo">
-                <div class="brand-icon"></div>
+            <div class="brand-logo" onclick="startNewChat()">
+                <svg class="brand-svg-logo" viewBox="0 0 100 100" width="28" height="28">
+                    <defs>
+                        <linearGradient id="synapseGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+                            <stop offset="0%" stop-color="var(--accent-warm, #d97706)"/>
+                            <stop offset="100%" stop-color="var(--accent-blue, #a8c7fa)"/>
+                        </linearGradient>
+                    </defs>
+                    <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" 
+                          fill="none" 
+                          stroke="url(#synapseGlow)" 
+                          stroke-width="7" 
+                          stroke-linecap="round"/>
+                    <circle cx="65" cy="25" r="4" fill="var(--accent-blue)"/>
+                    <circle cx="35" cy="75" r="4" fill="var(--accent-warm)"/>
+                    <circle cx="50" cy="50" r="6" fill="url(#synapseGlow)"/>
+                    <circle cx="50" cy="50" r="2" fill="#ffffff"/>
+                </svg>
                 <span class="brand-text">Synapse</span>
             </div>
             <button class="toggle-sidebar-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
@@ -674,8 +686,18 @@
     <main>
         <div class="mobile-header">
             <button class="mobile-menu-btn" onclick="openMobileSidebar()">☰</button>
-            <div class="brand-logo">
-                <div class="brand-icon"></div>
+            <div class="brand-logo" onclick="startNewChat()">
+                <svg class="brand-svg-logo" viewBox="0 0 100 100" width="24" height="24">
+                    <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" 
+                          fill="none" 
+                          stroke="url(#synapseGlow)" 
+                          stroke-width="7" 
+                          stroke-linecap="round"/>
+                    <circle cx="65" cy="25" r="4" fill="var(--accent-blue)"/>
+                    <circle cx="35" cy="75" r="4" fill="var(--accent-warm)"/>
+                    <circle cx="50" cy="50" r="6" fill="url(#synapseGlow)"/>
+                    <circle cx="50" cy="50" r="2" fill="#ffffff"/>
+                </svg>
                 <span style="font-weight: 600;">Synapse</span>
             </div>
             <button class="mobile-menu-btn" onclick="startNewChat()">+</button>
@@ -855,8 +877,6 @@
             }
         }
 
-        /* --- CHAT MANAGEMENT FUNCTIONS --- */
-
         function togglePinChat(id, event) {
             event.stopPropagation();
             const session = chatSessions.find(s => s.id === id);
@@ -923,21 +943,18 @@
             const actionsDiv = document.createElement('div');
             actionsDiv.classList.add('item-actions');
 
-            // Pin button
             const pinBtn = document.createElement('button');
             pinBtn.classList.add('action-icon-btn');
             pinBtn.innerHTML = session.pinned ? '📌' : '📍';
             pinBtn.title = session.pinned ? 'Unpin chat' : 'Pin chat';
             pinBtn.onclick = (e) => togglePinChat(session.id, e);
 
-            // Rename button
             const renameBtn = document.createElement('button');
             renameBtn.classList.add('action-icon-btn');
             renameBtn.innerHTML = '✏️';
             renameBtn.title = 'Rename chat';
             renameBtn.onclick = (e) => renameChat(session.id, e);
 
-            // Delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.classList.add('action-icon-btn');
             deleteBtn.innerHTML = '🗑️';
@@ -1073,7 +1090,8 @@
             const loadingElement = aiMessages[aiMessages.length - 1];
 
             try {
-                const response = await fetch('/.netlify/functions/gemini', {
+                // Route fetch to Render's Express server endpoint
+                const response = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ prompt: text })
@@ -1099,7 +1117,7 @@
                 saveMessageToSession('ai', aiResponseText);
 
             } catch (err) {
-                loadingElement.innerText = "Error connecting to serverless function.";
+                loadingElement.innerText = "Error connecting to backend server.";
             }
 
             if (searchInput.value.trim() !== '') {
@@ -1115,8 +1133,17 @@
 
             const formattedContent = sender === 'ai' ? marked.parse(text) : text;
 
+            const aiAvatarSVG = `
+                <svg class="avatar-svg" viewBox="0 0 100 100" width="26" height="26">
+                    <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" fill="none" stroke="url(#synapseGlow)" stroke-width="8" stroke-linecap="round"/>
+                    <circle cx="65" cy="25" r="5" fill="var(--accent-blue)"/>
+                    <circle cx="35" cy="75" r="5" fill="var(--accent-warm)"/>
+                    <circle cx="50" cy="50" r="7" fill="url(#synapseGlow)"/>
+                </svg>
+            `;
+
             messageDiv.innerHTML = sender === 'ai' 
-                ? `<div class="avatar"></div><div class="message-content">${formattedContent}</div>`
+                ? `${aiAvatarSVG}<div class="message-content">${formattedContent}</div>`
                 : `<div class="message-content">${text}</div>`;
 
             messagesContainer.appendChild(messageDiv);
