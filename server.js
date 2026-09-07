@@ -32,11 +32,11 @@ app.post('/api/gemini', async (req, res) => {
 
         const payload = { contents: [{ parts }] };
 
-        // Fallback array for models
+        // Updated model fallback hierarchy
         const models = [
-            "gemini-2.5-flash",
-            "gemini-1.5-flash",
-            "gemini-2.0-flash"
+            "gemini-3.6-flash",
+            "gemini-3.5-flash",
+            "gemini-3.5-flash-lite"
         ];
 
         let geminiResponse = null;
