@@ -9,7 +9,10 @@ app.use(express.json({ limit: '10mb' }));
 // Serve static frontend files
 app.use(express.static(__dirname));
 
-// Streaming endpoint for Gemini API with Accuracy Enhancements
+// Helper function to pause execution during retries
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Streaming endpoint for Gemini API with 429 Retry Backoff
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, imageBase64, mimeType } = req.body;
@@ -30,7 +33,6 @@ app.post('/api/gemini', async (req, res) => {
         }
         parts.push({ text: prompt || "Analyze this image." });
 
-        // Accuracy-focused payload configuration
         const payload = {
             systemInstruction: {
                 parts: [{ 
@@ -38,50 +40,75 @@ app.post('/api/gemini', async (req, res) => {
                 }]
             },
             contents: [{ parts }],
-            tools: [{ googleSearch: {} }], // Enable Google Search Grounding for real-time facts
             generationConfig: {
-                temperature: 0.1, // Near-zero temperature minimizes hallucination
+                temperature: 0.1,
                 topP: 0.8
             }
         };
 
         // Active Gemini models
         const models = [
-            "gemini-3.8-flash",
-            "gemini-3.6-flash",
-            "gemini-3.5-flash"
+            "gemini-2.5-flash",
+            "gemini-1.5-flash",
+            "gemini-2.5-flash-lite"
         ];
 
         let geminiResponse = null;
         let lastError = null;
 
+        // Try models sequentially with backoff retry logic for 429 rate limits
         for (const model of models) {
-            try {
-                const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
+            let attempts = 0;
+            const maxAttempts = 3;
 
-                if (resp.ok) {
-                    geminiResponse = resp;
-                    break;
-                } else {
+            while (attempts < maxAttempts) {
+                try {
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (resp.ok) {
+                        geminiResponse = resp;
+                        break;
+                    }
+
+                    const status = resp.status;
                     const errText = await resp.text();
-                    lastError = `Model ${model} (${resp.status}): ${errText}`;
+
+                    // If rate-limited (429), pause and retry exponentially (2s, 4s)
+                    if (status === 429) {
+                        attempts++;
+                        lastError = `Rate limit (429) reached on ${model}. Waiting before retry attempt ${attempts}...`;
+                        console.warn(lastError);
+                        if (attempts < maxAttempts) {
+                            await sleep(attempts * 2000); // Exponential wait
+                            continue;
+                        }
+                    }
+
+                    lastError = `Model ${model} (${status}): ${errText}`;
                     console.warn(lastError);
+                    break; // Move to next fallback model if non-429 error occurs
+
+                } catch (err) {
+                    lastError = `Model ${model} fetch failed: ${err.message}`;
+                    console.warn(lastError);
+                    break;
                 }
-            } catch (err) {
-                lastError = `Model ${model} fetch failed: ${err.message}`;
-                console.warn(lastError);
             }
+
+            if (geminiResponse) break;
         }
 
         if (!geminiResponse) {
-            return res.status(500).json({ error: lastError || "Failed to connect to Gemini API models." });
+            return res.status(429).json({ 
+                error: "Free Tier Rate Limit reached. Please wait 30 seconds before sending another prompt." 
+            });
         }
 
-        // Set streaming headers after confirming connection
+        // Set streaming headers after confirming 200 OK
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
