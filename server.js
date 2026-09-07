@@ -1,20 +1,43 @@
 const express = require('express');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// Increase JSON limit for base64 image payloads
+// Required when hosted behind proxies on platforms like Render or Vercel
+app.set('trust proxy', 1);
+
+// Increase JSON payload limit for base64 images
 app.use(express.json({ limit: '10mb' }));
 
-// Serve static frontend assets
+// Serve static frontend files
 app.use(express.static(__dirname));
 
-// Stream endpoint with accuracy controls, context history, and multi-key rotation
-app.post('/api/gemini', async (req, res) => {
+// Rate Limiter: Max 5 requests per 1 minute per IP address
+const geminiApiLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000, // 1 minute window
+    max: 5, // Limit each IP to 5 requests per window
+    message: { 
+        error: "Too many requests from this device. Please wait 1 minute before sending another prompt." 
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+
+// Stream endpoint protected by rate limiter
+app.post('/api/gemini', geminiApiLimiter, async (req, res) => {
     try {
         const { prompt, history, imageBase64, mimeType } = req.body;
 
-        // Parse keys from comma-separated string or single fallback variable
+        // Optional: App Passcode Lock (uncomment if you set APP_PASSCODE in environment)
+        /*
+        const userPasscode = req.headers['x-app-passcode'];
+        const REQUIRED_PASSCODE = process.env.APP_PASSCODE;
+        if (REQUIRED_PASSCODE && userPasscode !== REQUIRED_PASSCODE) {
+            return res.status(401).json({ error: "Unauthorized: Invalid App Passcode." });
+        }
+        */
+
         const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -22,7 +45,6 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: "Missing GEMINI_API_KEYS environment variable." });
         }
 
-        // Format conversation history for Gemini API context
         const contents = Array.isArray(history) ? [...history] : [];
         const currentParts = [];
 
@@ -34,7 +56,7 @@ app.post('/api/gemini', async (req, res) => {
         currentParts.push({ text: prompt || "Analyze this image." });
         contents.push({ role: 'user', parts: currentParts });
 
-        // High-accuracy API configuration
+        // High-accuracy API configuration (Grounding removed to conserve quota)
         const payload = {
             systemInstruction: {
                 parts: [{ 
@@ -42,18 +64,16 @@ app.post('/api/gemini', async (req, res) => {
                 }]
             },
             contents: contents,
-            tools: [{ googleSearch: {} }], // Real-time web search grounding
             generationConfig: {
-                temperature: 0.1, // Near-zero temperature minimizes hallucinations
+                temperature: 0.1, // Low temperature minimizes hallucinations
                 topP: 0.8
             }
         };
 
-        // Active Gemini models
         const models = [
-            "gemini-3.6-flash",
-            "gemini-3.5-flash",
-            "gemini-3.5-flash-lite"
+            "gemini-2.5-flash",
+            "gemini-1.5-flash",
+            "gemini-2.5-flash-lite"
         ];
 
         let geminiResponse = null;
@@ -83,7 +103,9 @@ app.post('/api/gemini', async (req, res) => {
                     console.warn(`[API Warning] ${lastError}`);
 
                     if (status === 429) {
-                        break; // Rate limit hit: switch to next key immediately
+                        // Pause 1.5s before key switch to avoid rapid multi-burst triggers
+                        await new Promise(r => setTimeout(r, 1500));
+                        break; 
                     }
                 } catch (err) {
                     console.error(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
@@ -99,7 +121,6 @@ app.post('/api/gemini', async (req, res) => {
             });
         }
 
-        // Set streaming headers after verifying 200 OK connection
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
