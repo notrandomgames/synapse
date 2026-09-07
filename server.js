@@ -91,7 +91,7 @@ app.post('/api/gemini', async (req, res) => {
         if (!geminiResponse) {
             console.error(`[Failure] All keys failed. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All provided API keys have temporarily reached their free tier quota. Please wait 30 seconds." 
+                error: "All provided API keys have temporarily reached their quota. Please wait 30 seconds." 
             });
         }
 
