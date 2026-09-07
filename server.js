@@ -35,15 +35,10 @@ app.post('/api/gemini', async (req, res) => {
         parts.push({ text: prompt || "Analyze this image." });
 
         const payload = {
-            contents: [{ parts }],
-            generationConfig: {
-                thinkingConfig: {
-                    thinkingBudget: 0 // Set to 0 for ultra-fast stream output
-                }
-            }
+            contents: [{ parts }]
         };
 
-        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:streamGenerateContent?key=${API_KEY}`, {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:streamGenerateContent?key=${API_KEY}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -59,28 +54,32 @@ app.post('/api/gemini', async (req, res) => {
         // Read stream chunks from Gemini and pipe them directly to the client response
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
+        let buffer = "";
 
         while (true) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            const rawChunk = decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            
+            // Keep the last incomplete line in the buffer
+            buffer = lines.pop() || "";
 
-            // Parse Google SSE JSON objects to extract generated text parts
-            const lines = rawChunk.split('\n');
             for (const line of lines) {
-                if (line.startsWith('[') || line.startsWith(',')) {
+                const trimmed = line.trim();
+                if (trimmed.startsWith('data:')) {
+                    const jsonStr = trimmed.replace(/^data:\s*/, '').trim();
+                    if (jsonStr === '[DONE]') continue;
+                    
                     try {
-                        const cleanLine = line.replace(/^[,\[\]]/, '').trim();
-                        if (cleanLine) {
-                            const parsed = JSON.parse(cleanLine);
-                            const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
-                            if (textChunk) {
-                                res.write(textChunk);
-                            }
+                        const parsed = JSON.parse(jsonStr);
+                        const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                        if (textChunk) {
+                            res.write(textChunk);
                         }
                     } catch (e) {
-                        // Skip incomplete JSON lines across chunk boundaries
+                        // Skip malformed chunks
                     }
                 }
             }
