@@ -9,7 +9,7 @@ app.use(express.json({ limit: '10mb' }));
 // Serve static frontend files
 app.use(express.static(__dirname));
 
-// Streaming endpoint for Gemini API
+// Streaming endpoint for Gemini API with Accuracy Enhancements
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, imageBase64, mimeType } = req.body;
@@ -30,19 +30,31 @@ app.post('/api/gemini', async (req, res) => {
         }
         parts.push({ text: prompt || "Analyze this image." });
 
-        const payload = { contents: [{ parts }] };
+        // Accuracy-focused payload configuration
+        const payload = {
+            systemInstruction: {
+                parts: [{ 
+                    text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, double-check logic step-by-step, and do not invent details." 
+                }]
+            },
+            contents: [{ parts }],
+            tools: [{ googleSearch: {} }], // Enable Google Search Grounding for real-time facts
+            generationConfig: {
+                temperature: 0.1, // Near-zero temperature minimizes hallucination
+                topP: 0.8
+            }
+        };
 
-        // Updated model fallback hierarchy
+        // Active Gemini models
         const models = [
+            "gemini-3.8-flash",
             "gemini-3.6-flash",
-            "gemini-3.5-flash",
-            "gemini-3.5-flash-lite"
+            "gemini-3.5-flash"
         ];
 
         let geminiResponse = null;
         let lastError = null;
 
-        // Try models sequentially until one connects
         for (const model of models) {
             try {
                 const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
@@ -69,7 +81,7 @@ app.post('/api/gemini', async (req, res) => {
             return res.status(500).json({ error: lastError || "Failed to connect to Gemini API models." });
         }
 
-        // Set streaming headers ONLY after confirming a 200 OK from Gemini
+        // Set streaming headers after confirming connection
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
@@ -83,7 +95,7 @@ app.post('/api/gemini', async (req, res) => {
 
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
-            buffer = lines.pop() || ""; // Retain incomplete chunk line
+            buffer = lines.pop() || "";
 
             for (const line of lines) {
                 const trimmed = line.trim();
@@ -97,14 +109,11 @@ app.post('/api/gemini', async (req, res) => {
                         if (textChunk) {
                             res.write(textChunk);
                         }
-                    } catch (e) {
-                        // Ignore syntax errors on partial frames
-                    }
+                    } catch (e) {}
                 }
             }
         }
 
-        // Process leftover buffer
         if (buffer.trim().startsWith('data:')) {
             const jsonStr = buffer.trim().slice(5).trim();
             try {
