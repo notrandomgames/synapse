@@ -3,17 +3,14 @@ const path = require('path');
 
 const app = express();
 
-// Increase JSON payload limit for base64 images
 app.use(express.json({ limit: '10mb' }));
-
-// Serve static frontend files
 app.use(express.static(__dirname));
 
-// Stream endpoint 
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history, imageBase64, mimeType } = req.body;
 
+        // Pulls all keys from GEMINI_API_KEYS environment variable separated by commas
         const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -46,9 +43,9 @@ app.post('/api/gemini', async (req, res) => {
         };
 
         const models = [
-            "gemini-2.5-flash",
-            "gemini-1.5-flash",
-            "gemini-2.5-flash-lite"
+            "gemini-3.8-flash",
+            "gemini-3.7-flash",
+            "gemini-3.5-flash-lite"
         ];
 
         let geminiResponse = null;
@@ -60,9 +57,20 @@ app.post('/api/gemini', async (req, res) => {
 
             for (const model of models) {
                 try {
-                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${currentKey}`, {
+                    // Check if key format uses Bearer header (for AQ tokens) or query param (for AIza keys)
+                    const isAuthToken = currentKey.startsWith('AQ.');
+                    const url = isAuthToken 
+                        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`
+                        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${currentKey}`;
+
+                    const headers = { 'Content-Type': 'application/json' };
+                    if (isAuthToken) {
+                        headers['Authorization'] = `Bearer ${currentKey}`;
+                    }
+
+                    const resp = await fetch(url, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: headers,
                         body: JSON.stringify(payload)
                     });
 
@@ -91,7 +99,7 @@ app.post('/api/gemini', async (req, res) => {
         if (!geminiResponse) {
             console.error(`[Failure] All keys failed. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All provided API keys have temporarily reached their quota. Please wait 30 seconds." 
+                error: "All provided API keys have temporarily reached their free tier quota. Please wait 30 seconds." 
             });
         }
 
