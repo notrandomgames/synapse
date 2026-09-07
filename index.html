@@ -1235,8 +1235,14 @@
                 });
 
                 if (!response.ok) {
-                    const errText = await response.text();
-                    loadingElement.innerText = "Error: " + errText;
+                    let errorMsg = "Failed to fetch response.";
+                    try {
+                        const errJson = await response.json();
+                        errorMsg = errJson.error || JSON.stringify(errJson);
+                    } catch (e) {
+                        errorMsg = await response.text();
+                    }
+                    loadingElement.innerText = "Error: " + errorMsg;
                     return;
                 }
 
@@ -1258,7 +1264,7 @@
                 saveMessageToSession('ai', streamedText);
 
             } catch (err) {
-                loadingElement.innerText = "Error connecting to backend server.";
+                loadingElement.innerText = "Error connecting to backend server: " + err.message;
             }
 
             scrollToBottom();
