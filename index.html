@@ -171,6 +171,7 @@
         .chat-history {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -283,6 +284,8 @@
             padding: 16px;
             position: relative;
             width: 100%;
+            height: 100%;
+            overflow: hidden;
         }
 
         .mobile-header {
@@ -291,6 +294,7 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: 8px;
+            flex-shrink: 0;
         }
 
         .mobile-menu-btn {
@@ -308,11 +312,13 @@
             height: 100%;
             display: flex;
             flex-direction: column;
+            overflow: hidden;
         }
 
         .welcome-section {
             margin-top: 40px;
             margin-bottom: 16px;
+            flex-shrink: 0;
         }
 
         .welcome-title {
@@ -336,6 +342,7 @@
             gap: 12px;
             margin-top: 20px;
             margin-bottom: auto;
+            flex-shrink: 0;
         }
 
         .card {
@@ -365,17 +372,30 @@
         .messages-container {
             flex: 1;
             overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            scroll-behavior: smooth;
             display: flex;
             flex-direction: column;
             gap: 20px;
-            padding-right: 4px;
+            padding-right: 6px;
             margin-bottom: 16px;
+            min-height: 0;
+        }
+
+        .messages-container::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .messages-container::-webkit-scrollbar-thumb {
+            background: var(--bg-card-hover);
+            border-radius: 10px;
         }
 
         .message {
             display: flex;
             gap: 12px;
             line-height: 1.6;
+            flex-shrink: 0;
         }
 
         .message.user .message-content {
@@ -436,6 +456,11 @@
             color: var(--text-primary);
         }
 
+        .input-wrapper {
+            flex-shrink: 0;
+            width: 100%;
+        }
+
         .input-container {
             background-color: var(--bg-input);
             border: 1px solid var(--border-color);
@@ -459,7 +484,8 @@
             color: var(--text-primary);
             font-size: 1rem;
             resize: none;
-            height: 24px;
+            max-height: 120px;
+            overflow-y: auto;
         }
 
         .input-controls {
@@ -609,7 +635,7 @@
             aside.collapsed .brand-text,
             aside.collapsed .btn-text,
             aside.collapsed .search-container { display: flex; }
-            main { padding: 12px; }
+            main { padding: 12px; height: 100dvh; }
             .welcome-section { margin-top: 16px; }
             .welcome-title { font-size: 2.1rem; }
             .welcome-subtitle { font-size: 0.95rem; }
@@ -714,10 +740,16 @@
 
             <div class="messages-container" id="messagesContainer" style="display: none;"></div>
 
-            <div>
+            <div class="input-wrapper">
                 <div class="input-container">
+                    <div id="imagePreviewContainer" style="display: none; position: relative; width: fit-content; margin-bottom: 4px;">
+                        <img id="imagePreview" src="" style="max-height: 80px; border-radius: 8px; border: 1px solid var(--border-color);">
+                        <button onclick="removeSelectedImage()" style="position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; border: none; border-radius: 50%; width: 20px; height: 20px; cursor: pointer; font-size: 11px;">✕</button>
+                    </div>
                     <textarea class="input-box" id="userInput" placeholder="How can Synapse help you today?" rows="1" onkeydown="handleKeyPress(event)"></textarea>
                     <div class="input-controls">
+                        <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="handleImageSelect(event)">
+                        <button class="action-btn" onclick="document.getElementById('fileInput').click()" title="Attach Image">📎 Attach Image</button>
                         <button class="action-btn" onclick="fillRandomPrompt()" title="Insert random prompt">🎲 Surprise Prompt</button>
                         <button class="send-btn" onclick="sendMessage()">➔</button>
                     </div>
@@ -768,6 +800,9 @@
         const settingsModal = document.getElementById('settingsModal');
         const themeSelect = document.getElementById('themeSelect');
         const searchInput = document.getElementById('searchInput');
+
+        let selectedImageBase64 = null;
+        let selectedImageMimeType = null;
 
         const promptBank = [
             "If animals could talk, which species would be the rudest and why?",
@@ -824,6 +859,31 @@
 
         randomizePromptCards();
         renderHistory();
+
+        function handleImageSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            selectedImageMimeType = file.type;
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const fullBase64 = e.target.result;
+                selectedImageBase64 = fullBase64.split(',')[1];
+                
+                document.getElementById('imagePreview').src = fullBase64;
+                document.getElementById('imagePreviewContainer').style.display = 'block';
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function removeSelectedImage() {
+            selectedImageBase64 = null;
+            selectedImageMimeType = null;
+            document.getElementById('fileInput').value = '';
+            document.getElementById('imagePreviewContainer').style.display = 'none';
+        }
 
         function randomizePromptCards() {
             const shuffled = [...promptBank].sort(() => 0.5 - Math.random());
@@ -1068,9 +1128,15 @@
             sendMessage();
         }
 
+        function scrollToBottom() {
+            setTimeout(() => {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            }, 50);
+        }
+
         async function sendMessage() {
             const text = userInput.value.trim();
-            if (!text) return;
+            if (!text && !selectedImageBase64) return;
 
             welcomeSection.style.display = 'none';
             cardsGrid.style.display = 'none';
@@ -1078,11 +1144,15 @@
 
             if (!currentSessionId) {
                 currentSessionId = Date.now().toString();
-                chatSessions.unshift({ id: currentSessionId, title: text, messages: [], pinned: false });
+                chatSessions.unshift({ id: currentSessionId, title: text || "Image Analysis", messages: [], pinned: false });
             }
 
-            appendMessage(text, 'user');
-            saveMessageToSession('user', text);
+            const currentImage = selectedImageBase64;
+            const currentMime = selectedImageMimeType;
+            removeSelectedImage();
+
+            appendMessage(text || "[Attached Image]", 'user');
+            saveMessageToSession('user', text || "[Attached Image]");
             userInput.value = '';
 
             appendMessage("Thinking...", 'ai');
@@ -1090,11 +1160,14 @@
             const loadingElement = aiMessages[aiMessages.length - 1];
 
             try {
-                // Route fetch to Render's Express server endpoint
                 const response = await fetch('/api/gemini', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt: text })
+                    body: JSON.stringify({ 
+                        prompt: text, 
+                        imageBase64: currentImage, 
+                        mimeType: currentMime 
+                    })
                 });
 
                 const data = await response.json();
@@ -1120,6 +1193,8 @@
                 loadingElement.innerText = "Error connecting to backend server.";
             }
 
+            scrollToBottom();
+
             if (searchInput.value.trim() !== '') {
                 filterChats(searchInput.value);
             } else {
@@ -1133,7 +1208,6 @@
 
             const formattedContent = sender === 'ai' ? marked.parse(text) : text;
 
-            // Restored neural network SVG avatar logo
             const aiAvatarSVG = `
                 <svg class="avatar-svg brand-svg-logo" viewBox="0 0 100 100" width="26" height="26">
                     <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" 
@@ -1158,7 +1232,7 @@
                 attachCopyButtons(messageDiv);
             }
 
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            scrollToBottom();
         }
 
         function attachCopyButtons(container) {
@@ -1205,6 +1279,7 @@
 
             session.messages.forEach(msg => appendMessage(msg.content, msg.sender));
             renderHistory();
+            scrollToBottom();
         }
 
         function startNewChat() {
@@ -1215,6 +1290,7 @@
             cardsGrid.style.display = 'grid';
             userInput.value = '';
             if (searchInput) searchInput.value = '';
+            removeSelectedImage();
             randomizePromptCards();
             renderHistory();
             closeMobileSidebar();
