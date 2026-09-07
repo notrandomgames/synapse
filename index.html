@@ -1217,9 +1217,11 @@
             saveMessageToSession('user', text || "[Attached Image]");
             userInput.value = '';
 
-            appendMessage("Thinking...", 'ai');
+            appendMessage("", 'ai');
             const aiMessages = messagesContainer.querySelectorAll('.message.ai .message-content');
             const loadingElement = aiMessages[aiMessages.length - 1];
+
+            let streamedText = "";
 
             try {
                 const response = await fetch('/api/gemini', {
@@ -1232,24 +1234,28 @@
                     })
                 });
 
-                const data = await response.json();
-                let aiResponseText = "";
-
-                if (data.error) {
-                    if (data.error.includes("Quota exceeded") || data.error.includes("rate-limits")) {
-                        aiResponseText = "⚠️ Synapse is receiving too many requests right now. Please wait a minute before sending another prompt.";
-                    } else {
-                        aiResponseText = "Error: " + data.error;
-                    }
-                } else if (data.candidates && data.candidates[0].content.parts[0].text) {
-                    aiResponseText = data.candidates[0].content.parts[0].text;
-                } else {
-                    aiResponseText = "Error: Invalid response format.";
+                if (!response.ok) {
+                    const errText = await response.text();
+                    loadingElement.innerText = "Error: " + errText;
+                    return;
                 }
 
-                loadingElement.innerHTML = marked.parse(aiResponseText);
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder("utf-8");
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value, { stream: true });
+                    streamedText += chunk;
+
+                    loadingElement.innerHTML = marked.parse(streamedText);
+                    scrollToBottom();
+                }
+
                 attachCopyButtons(loadingElement.parentElement);
-                saveMessageToSession('ai', aiResponseText);
+                saveMessageToSession('ai', streamedText);
 
             } catch (err) {
                 loadingElement.innerText = "Error connecting to backend server.";
@@ -1268,7 +1274,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.classList.add('message', sender);
 
-            const formattedContent = sender === 'ai' ? marked.parse(text) : text;
+            const formattedContent = sender === 'ai' ? (text ? marked.parse(text) : 'Thinking...') : text;
 
             const aiAvatarSVG = `
                 <svg class="avatar-svg brand-svg-logo" viewBox="0 0 100 100" width="26" height="26">
@@ -1290,7 +1296,7 @@
 
             messagesContainer.appendChild(messageDiv);
 
-            if (sender === 'ai') {
+            if (sender === 'ai' && text) {
                 attachCopyButtons(messageDiv);
             }
 
