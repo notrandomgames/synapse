@@ -9,18 +9,20 @@ app.use(express.json({ limit: '10mb' }));
 // Serve static frontend files
 app.use(express.static(__dirname));
 
-// Helper function to pause execution during retries
-const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
-
-// Streaming endpoint for Gemini API with 429 Retry Backoff
+// Streaming endpoint with Fixed Multi-Key & Model Fallback
 app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, imageBase64, mimeType } = req.body;
-        const API_KEY = process.env.GEMINI_API_KEY || process.env.synapse;
 
-        if (!API_KEY) {
-            return res.status(500).json({ error: "Missing GEMINI_API_KEY environment variable." });
+        // Parse multiple API keys from comma-separated string or single key fallback
+        const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
+        const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+
+        if (apiKeys.length === 0) {
+            return res.status(500).json({ error: "Missing GEMINI_API_KEYS environment variable." });
         }
+
+        console.log(`[Synapse] Processing request with ${apiKeys.length} available API key(s)...`);
 
         const parts = [];
         if (imageBase64 && mimeType) {
@@ -46,7 +48,7 @@ app.post('/api/gemini', async (req, res) => {
             }
         };
 
-        // Active Gemini models
+        // Active Gemini models hierarchy
         const models = [
             "gemini-2.5-flash",
             "gemini-1.5-flash",
@@ -56,14 +58,14 @@ app.post('/api/gemini', async (req, res) => {
         let geminiResponse = null;
         let lastError = null;
 
-        // Try models sequentially with backoff retry logic for 429 rate limits
-        for (const model of models) {
-            let attempts = 0;
-            const maxAttempts = 3;
+        // Loop through keys and fallback models
+        keyLoop:
+        for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
+            const currentKey = apiKeys[keyIndex];
 
-            while (attempts < maxAttempts) {
+            for (const model of models) {
                 try {
-                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${API_KEY}`, {
+                    const resp = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${currentKey}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify(payload)
@@ -71,44 +73,38 @@ app.post('/api/gemini', async (req, res) => {
 
                     if (resp.ok) {
                         geminiResponse = resp;
-                        break;
+                        console.log(`[Success] Connected using Key #${keyIndex + 1} with model ${model}`);
+                        break keyLoop; // Successfully connected, break out of all loops
                     }
 
                     const status = resp.status;
                     const errText = await resp.text();
 
-                    // If rate-limited (429), pause and retry exponentially (2s, 4s)
                     if (status === 429) {
-                        attempts++;
-                        lastError = `Rate limit (429) reached on ${model}. Waiting before retry attempt ${attempts}...`;
-                        console.warn(lastError);
-                        if (attempts < maxAttempts) {
-                            await sleep(attempts * 2000); // Exponential wait
-                            continue;
-                        }
+                        console.warn(`[429 Quota Exceeded] Key #${keyIndex + 1} rate limited on ${model}. Switching to next key...`);
+                        lastError = `API Key #${keyIndex + 1} exhausted quota.`;
+                        break; // Rate limit hit: break model loop to try the next API key immediately
                     }
 
+                    // For non-429 errors (e.g. 404/400), log and continue to next model for the SAME key
+                    console.warn(`[${status} Error] Key #${keyIndex + 1} on ${model}: ${errText}`);
                     lastError = `Model ${model} (${status}): ${errText}`;
-                    console.warn(lastError);
-                    break; // Move to next fallback model if non-429 error occurs
 
                 } catch (err) {
-                    lastError = `Model ${model} fetch failed: ${err.message}`;
-                    console.warn(lastError);
-                    break;
+                    console.warn(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
+                    lastError = err.message;
                 }
             }
-
-            if (geminiResponse) break;
         }
 
         if (!geminiResponse) {
+            console.error(`[Failure] All ${apiKeys.length} API keys failed across all models. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "Rate Limit reached. Please wait 30 seconds before sending another prompt." 
+                error: "All provided API keys have temporarily reached their free tier rate limits. Please try again in 30 seconds." 
             });
         }
 
-        // Set streaming headers after confirming 200 OK
+        // Set streaming headers after confirming connection
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
