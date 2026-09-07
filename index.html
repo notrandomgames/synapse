@@ -1133,12 +1133,18 @@
 
             const formattedContent = sender === 'ai' ? marked.parse(text) : text;
 
+            // Restored neural network SVG avatar logo
             const aiAvatarSVG = `
-                <svg class="avatar-svg" viewBox="0 0 100 100" width="26" height="26">
-                    <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" fill="none" stroke="url(#synapseGlow)" stroke-width="8" stroke-linecap="round"/>
-                    <circle cx="65" cy="25" r="5" fill="var(--accent-blue)"/>
-                    <circle cx="35" cy="75" r="5" fill="var(--accent-warm)"/>
-                    <circle cx="50" cy="50" r="7" fill="url(#synapseGlow)"/>
+                <svg class="avatar-svg brand-svg-logo" viewBox="0 0 100 100" width="26" height="26">
+                    <path d="M 65 25 C 40 15, 25 40, 50 50 C 75 60, 60 85, 35 75" 
+                          fill="none" 
+                          stroke="url(#synapseGlow)" 
+                          stroke-width="7" 
+                          stroke-linecap="round"/>
+                    <circle cx="65" cy="25" r="4" fill="var(--accent-blue)"/>
+                    <circle cx="35" cy="75" r="4" fill="var(--accent-warm)"/>
+                    <circle cx="50" cy="50" r="6" fill="url(#synapseGlow)"/>
+                    <circle cx="50" cy="50" r="2" fill="#ffffff"/>
                 </svg>
             `;
 
