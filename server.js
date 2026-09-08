@@ -10,7 +10,7 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+        const rawKeys = process.env.synapse || process.env.GROQ_API_KEY || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
