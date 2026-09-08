@@ -11,7 +11,7 @@ app.post('/api/gemini', async (req, res) => {
         const { prompt, history } = req.body;
 
         // Pulls all Groq API keys from GROQ_API_KEYS environment variable separated by commas
-        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+        const rawKeys = process.env.synapse || process.env.GROQ_API_KEY || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
