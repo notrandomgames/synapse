@@ -10,7 +10,6 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        // Your Groq key stored in the "synapse" environment variable
         const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -22,7 +21,7 @@ app.post('/api/gemini', async (req, res) => {
             { role: "system", content: "You are an authoritative, concise, and helpful AI assistant." }
         ];
 
-        // Keep the last 4 messages to balance memory and token usage
+        // Keep the last 4 messages to prevent hitting token limits
         const recentHistory = Array.isArray(history) ? history.slice(-4) : [];
         
         recentHistory.forEach(h => {
@@ -33,11 +32,10 @@ app.post('/api/gemini', async (req, res) => {
         });
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // Using Groq models with the HIGHEST free-tier Token-Per-Minute (TPM) limits
+        // ONLY using valid, lightning-fast models to prevent fallback delays
         const models = [
-            "meta-llama/llama-4-scout-17b-16e-instruct", // 30,000 TPM limit
-            "groq/compound",                             // 70,000 TPM limit
-            "llama-3.1-8b-instant"                       // 6,000 TPM limit (absolute last resort)
+            "llama-3.1-8b-instant",    // 1st Choice: Instant speed, highest free tier limits
+            "llama-3.3-70b-versatile"  // 2nd Choice: Fallback if the first is rate-limited
         ];
 
         let streamedResponse = null;
@@ -64,23 +62,19 @@ app.post('/api/gemini', async (req, res) => {
 
                     if (resp.ok) {
                         streamedResponse = resp;
-                        console.log(`[Success] Connected via Groq using ${model}.`);
                         break keyLoop;
                     }
                     
                     const errText = await resp.text();
                     lastError = `Model ${model} rejected the request: ${errText}`;
-                    console.warn(lastError);
                     
                 } catch (err) {
                     lastError = err.message;
-                    console.warn(`[Groq Warning]:`, err.message);
                 }
             }
         }
 
         if (!streamedResponse) {
-            // Spitting out the ACTUAL error from Groq so we stop guessing
             return res.status(429).json({ 
                 error: `Groq Connection Failed. Details: ${lastError}` 
             });
