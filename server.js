@@ -10,16 +10,21 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        const groqKeys = (process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "").split(',').map(k => k.trim()).filter(Boolean);
-        const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.synapse || "";
+        // Your Groq key stored in the "synapse" environment variable
+        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "";
+        const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
-        // Keep ONLY the last 2 messages to prevent exceeding Groq's 6,000 TPM limit
-        const recentHistory = Array.isArray(history) ? history.slice(-2) : [];
-        
+        if (apiKeys.length === 0) {
+            return res.status(500).json({ error: "Missing Groq API keys environment variable." });
+        }
+
         const messages = [
             { role: "system", content: "You are an authoritative, concise, and helpful AI assistant." }
         ];
 
+        // Keep the last 4 messages to balance memory and token usage
+        const recentHistory = Array.isArray(history) ? history.slice(-4) : [];
+        
         recentHistory.forEach(h => {
             messages.push({
                 role: h.role === 'model' ? 'assistant' : 'user',
@@ -28,66 +33,56 @@ app.post('/api/gemini', async (req, res) => {
         });
         messages.push({ role: "user", content: prompt || "Hello" });
 
+        // Using Groq models with the HIGHEST free-tier Token-Per-Minute (TPM) limits
+        const models = [
+            "meta-llama/llama-4-scout-17b-16e-instruct", // 30,000 TPM limit
+            "groq/compound",                             // 70,000 TPM limit
+            "llama-3.1-8b-instant"                       // 6,000 TPM limit (absolute last resort)
+        ];
+
         let streamedResponse = null;
+        let lastError = "";
 
-        // 1. Try Groq First
-        for (const key of groqKeys) {
-            try {
-                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${key}`
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.1-8b-instant",
-                        messages: messages,
-                        temperature: 0.1,
-                        stream: true,
-                        max_tokens: 1024
-                    })
-                });
+        keyLoop:
+        for (const key of apiKeys) {
+            for (const model of models) {
+                try {
+                    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${key}`
+                        },
+                        body: JSON.stringify({
+                            model: model,
+                            messages: messages,
+                            temperature: 0.1,
+                            stream: true,
+                            max_tokens: 1024
+                        })
+                    });
 
-                if (resp.ok) {
-                    streamedResponse = resp;
-                    console.log("[Success] Connected via Groq.");
-                    break;
+                    if (resp.ok) {
+                        streamedResponse = resp;
+                        console.log(`[Success] Connected via Groq using ${model}.`);
+                        break keyLoop;
+                    }
+                    
+                    const errText = await resp.text();
+                    lastError = `Model ${model} rejected the request: ${errText}`;
+                    console.warn(lastError);
+                    
+                } catch (err) {
+                    lastError = err.message;
+                    console.warn(`[Groq Warning]:`, err.message);
                 }
-            } catch (err) {
-                console.warn("[Groq Warning]:", err.message);
-            }
-        }
-
-        // 2. Fall back to OpenRouter Free Tier if Groq is rate-limited
-        if (!streamedResponse && openRouterKey) {
-            try {
-                const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${openRouterKey}`,
-                        'HTTP-Referer': 'https://synapse.app',
-                        'X-Title': 'Synapse'
-                    },
-                    body: JSON.stringify({
-                        model: "meta-llama/llama-3.3-70b-instruct:free",
-                        messages: messages,
-                        stream: true
-                    })
-                });
-
-                if (resp.ok) {
-                    streamedResponse = resp;
-                    console.log("[Success] Connected via OpenRouter Fallback.");
-                }
-            } catch (err) {
-                console.warn("[OpenRouter Warning]:", err.message);
             }
         }
 
         if (!streamedResponse) {
+            // Spitting out the ACTUAL error from Groq so we stop guessing
             return res.status(429).json({ 
-                error: "All free tier rate limits hit. Wait 15 seconds or add a payment card at console.groq.com to unlock 250,000 TPM." 
+                error: `Groq Connection Failed. Details: ${lastError}` 
             });
         }
 
