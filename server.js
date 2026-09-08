@@ -8,105 +8,85 @@ app.use(express.static(__dirname));
 
 app.post('/api/gemini', async (req, res) => {
     try {
-        const { prompt, history, imageBase64, mimeType } = req.body;
+        const { prompt, history } = req.body;
 
-        // Pulls all keys from GEMINI_API_KEYS environment variable separated by commas
-        const rawKeys = process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || process.env.synapse || "";
+        // Pulls all Groq API keys from GROQ_API_KEYS environment variable separated by commas
+        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
-            return res.status(500).json({ error: "Missing GEMINI_API_KEYS environment variable." });
+            return res.status(500).json({ error: "Missing GROQ_API_KEYS environment variable." });
         }
 
-        const contents = Array.isArray(history) ? [...history] : [];
-        const currentParts = [];
-
-        if (imageBase64 && mimeType) {
-            currentParts.push({
-                inlineData: { mimeType, data: imageBase64 }
-            });
-        }
-        currentParts.push({ text: prompt || "Analyze this image." });
-        contents.push({ role: 'user', parts: currentParts });
-
-        const payload = {
-            systemInstruction: {
-                parts: [{ 
-                    text: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." 
-                }]
-            },
-            contents: contents,
-            generationConfig: {
-                temperature: 0.1,
-                topP: 0.8
-            }
-        };
-
-        const models = [
-            "gemini-3.8-flash",
-            "gemini-3.7-flash",
-            "gemini-3.5-flash-lite"
+        // Format history for OpenAI-compatible chat completion structure
+        const messages = [
+            { role: "system", content: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." }
         ];
 
-        let geminiResponse = null;
+        if (Array.isArray(history)) {
+            history.forEach(h => {
+                messages.push({
+                    role: h.role === 'model' ? 'assistant' : 'user',
+                    content: h.parts?.[0]?.text || ""
+                });
+            });
+        }
+        messages.push({ role: "user", content: prompt || "Hello" });
+
+        const payload = {
+            model: "llama-3.3-70b-versatile", // High-performance open-weight model on Groq
+            messages: messages,
+            temperature: 0.1,
+            stream: true
+        };
+
+        let groqResponse = null;
         let lastError = "";
 
-        keyLoop:
         for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
             const currentKey = apiKeys[keyIndex];
 
-            for (const model of models) {
-                try {
-                    // Check if key format uses Bearer header (for AQ tokens) or query param (for AIza keys)
-                    const isAuthToken = currentKey.startsWith('AQ.');
-                    const url = isAuthToken 
-                        ? `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse`
-                        : `https://generativelanguage.googleapis.com/v1beta/models/${model}:streamGenerateContent?alt=sse&key=${currentKey}`;
+            try {
+                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${currentKey}`
+                    },
+                    body: JSON.stringify(payload)
+                });
 
-                    const headers = { 'Content-Type': 'application/json' };
-                    if (isAuthToken) {
-                        headers['Authorization'] = `Bearer ${currentKey}`;
-                    }
-
-                    const resp = await fetch(url, {
-                        method: 'POST',
-                        headers: headers,
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (resp.ok) {
-                        geminiResponse = resp;
-                        console.log(`[Success] Key #${keyIndex + 1} connected via ${model}`);
-                        break keyLoop;
-                    }
-
-                    const status = resp.status;
-                    const errText = await resp.text();
-                    lastError = `Key #${keyIndex + 1} on ${model} [${status}]: ${errText}`;
-                    console.warn(`[API Warning] ${lastError}`);
-
-                    if (status === 429) {
-                        await new Promise(r => setTimeout(r, 1500));
-                        break; 
-                    }
-                } catch (err) {
-                    console.error(`[Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
-                    lastError = err.message;
+                if (resp.ok) {
+                    groqResponse = resp;
+                    console.log(`[Groq Success] Key #${keyIndex + 1} connected successfully.`);
+                    break;
                 }
+
+                const status = resp.status;
+                const errText = await resp.text();
+                lastError = `Key #${keyIndex + 1} [${status}]: ${errText}`;
+                console.warn(`[Groq Warning] ${lastError}`);
+
+                if (status === 429) {
+                    await new Promise(r => setTimeout(r, 1500));
+                }
+            } catch (err) {
+                console.error(`[Groq Fetch Error] Key #${keyIndex + 1}: ${err.message}`);
+                lastError = err.message;
             }
         }
 
-        if (!geminiResponse) {
-            console.error(`[Failure] All keys failed. Last error: ${lastError}`);
+        if (!groqResponse) {
+            console.error(`[Failure] All Groq keys failed. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All provided API keys have temporarily reached their free tier quota. Please wait 30 seconds." 
+                error: "All provided Groq API keys have reached their rate limits. Please try again shortly." 
             });
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
-        const reader = geminiResponse.body.getReader();
+        const reader = groqResponse.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
 
@@ -126,7 +106,7 @@ app.post('/api/gemini', async (req, res) => {
 
                     try {
                         const parsed = JSON.parse(jsonStr);
-                        const textChunk = parsed.candidates?.[0]?.content?.parts?.[0]?.text;
+                        const textChunk = parsed.choices?.[0]?.delta?.content;
                         if (textChunk) res.write(textChunk);
                     } catch (e) {}
                 }
