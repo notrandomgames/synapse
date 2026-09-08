@@ -10,11 +10,12 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
+        // Pulls all keys from GROQ_API_KEYS (or falls back to the single 'synapse' key variable)
+        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
-            return res.status(500).json({ error: "Missing GROQ_API_KEYS environment variable." });
+            return res.status(500).json({ error: "Missing Groq API keys environment variable." });
         }
 
         const messages = [
@@ -31,9 +32,10 @@ app.post('/api/gemini', async (req, res) => {
         }
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // Prioritize lightweight, high-limit model to avoid hitting rate caps
+        // Using high-volume free tier models with higher Token-Per-Minute (TPM) limits first
         const models = [
             "llama-3.1-8b-instant",
+            "meta-llama/llama-4-scout-17b-16e-instruct",
             "llama-3.3-70b-versatile"
         ];
 
@@ -74,8 +76,8 @@ app.post('/api/gemini', async (req, res) => {
                     console.warn(`[Groq Warning] ${lastError}`);
 
                     if (status === 429) {
-                        // Wait 2 seconds for token bucket to replenish before trying next option
-                        await new Promise(r => setTimeout(r, 2000));
+                        // Brief back-off pause to let the token bucket clear
+                        await new Promise(r => setTimeout(r, 1500));
                     }
                 } catch (err) {
                     console.error(`[Groq Fetch Error] ${err.message}`);
@@ -87,7 +89,7 @@ app.post('/api/gemini', async (req, res) => {
         if (!groqResponse) {
             console.error(`[Failure] Rate limit hit across all options. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "Groq rate limit reached. Please wait 15-30 seconds before sending another message." 
+                error: "Groq rate limit reached (Tokens Per Minute exceeded). Please wait 10-15 seconds before sending another message." 
             });
         }
 
