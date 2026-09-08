@@ -10,19 +10,15 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "";
-        const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
+        const groqKeys = (process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "").split(',').map(k => k.trim()).filter(Boolean);
+        const openRouterKey = process.env.OPENROUTER_API_KEY || process.env.synapse || "";
 
-        if (apiKeys.length === 0) {
-            return res.status(500).json({ error: "Missing Groq API keys environment variable." });
-        }
-
+        // Keep ONLY the last 2 messages to prevent exceeding Groq's 6,000 TPM limit
+        const recentHistory = Array.isArray(history) ? history.slice(-2) : [];
+        
         const messages = [
-            { role: "system", content: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." }
+            { role: "system", content: "You are an authoritative, concise, and helpful AI assistant." }
         ];
-
-        // TRUNCATE HISTORY: Keep only the last 6 messages to prevent hitting Tokens Per Minute (TPM) limits
-        const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
 
         recentHistory.forEach(h => {
             messages.push({
@@ -30,74 +26,75 @@ app.post('/api/gemini', async (req, res) => {
                 content: h.parts?.[0]?.text || ""
             });
         });
-
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // Models prioritized by high-throughput TPM limits on free tier
-        const models = [
-            "llama-3.1-8b-instant",
-            "llama-3.3-70b-versatile"
-        ];
+        let streamedResponse = null;
 
-        let groqResponse = null;
-        let lastError = "";
-
-        keyLoop:
-        for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
-            const currentKey = apiKeys[keyIndex];
-
-            for (const model of models) {
-                try {
-                    const payload = {
-                        model: model,
+        // 1. Try Groq First
+        for (const key of groqKeys) {
+            try {
+                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${key}`
+                    },
+                    body: JSON.stringify({
+                        model: "llama-3.1-8b-instant",
                         messages: messages,
                         temperature: 0.1,
                         stream: true,
-                        max_tokens: 2048 // Prevents overly runaway generation outputs
-                    };
+                        max_tokens: 1024
+                    })
+                });
 
-                    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': `Bearer ${currentKey}`
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    if (resp.ok) {
-                        groqResponse = resp;
-                        console.log(`[Groq Success] Connected via ${model}`);
-                        break keyLoop;
-                    }
-
-                    const status = resp.status;
-                    const errText = await resp.text();
-                    lastError = `Model ${model} [${status}]: ${errText}`;
-                    console.warn(`[Groq Warning] ${lastError}`);
-
-                    if (status === 429) {
-                        // Pause 3 seconds to let Groq's token-per-minute window clear
-                        await new Promise(r => setTimeout(r, 3000));
-                    }
-                } catch (err) {
-                    console.error(`[Groq Fetch Error] ${err.message}`);
-                    lastError = err.message;
+                if (resp.ok) {
+                    streamedResponse = resp;
+                    console.log("[Success] Connected via Groq.");
+                    break;
                 }
+            } catch (err) {
+                console.warn("[Groq Warning]:", err.message);
             }
         }
 
-        if (!groqResponse) {
-            console.error(`[Failure] Rate limit hit across all options. Last error: ${lastError}`);
+        // 2. Fall back to OpenRouter Free Tier if Groq is rate-limited
+        if (!streamedResponse && openRouterKey) {
+            try {
+                const resp = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${openRouterKey}`,
+                        'HTTP-Referer': 'https://synapse.app',
+                        'X-Title': 'Synapse'
+                    },
+                    body: JSON.stringify({
+                        model: "meta-llama/llama-3.3-70b-instruct:free",
+                        messages: messages,
+                        stream: true
+                    })
+                });
+
+                if (resp.ok) {
+                    streamedResponse = resp;
+                    console.log("[Success] Connected via OpenRouter Fallback.");
+                }
+            } catch (err) {
+                console.warn("[OpenRouter Warning]:", err.message);
+            }
+        }
+
+        if (!streamedResponse) {
             return res.status(429).json({ 
-                error: "Groq rate limit reached. Please wait 10-15 seconds before sending another message." 
+                error: "All free tier rate limits hit. Wait 15 seconds or add a payment card at console.groq.com to unlock 250,000 TPM." 
             });
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         res.setHeader('Transfer-Encoding', 'chunked');
 
-        const reader = groqResponse.body.getReader();
+        const reader = streamedResponse.body.getReader();
         const decoder = new TextDecoder("utf-8");
         let buffer = "";
 
