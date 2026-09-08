@@ -32,11 +32,10 @@ app.post('/api/gemini', async (req, res) => {
         });
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // 100% Verified Groq Free-Tier Models
+        // Guaranteed active Developer-Tier Models on Groq
         const models = [
-            "llama-3.1-8b-instant",    // 1st Choice: Instant speed, high capacity
-            "llama-3.1-70b-versatile", // 2nd Choice: Verified stable fallback
-            "mixtral-8x7b-32768"       // 3rd Choice: Excellent open-source backup
+            "openai/gpt-oss-20b",    // 1st Choice: Instant speed, massive 250K TPM capacity
+            "groq/compound-mini"     // 2nd Choice: Verified reliable fallback system
         ];
 
         let streamedResponse = null;
