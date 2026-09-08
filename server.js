@@ -10,7 +10,6 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        // Pulls all keys from GROQ_API_KEYS (or falls back to the single 'synapse' key variable)
         const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || process.env.synapse || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
@@ -22,20 +21,21 @@ app.post('/api/gemini', async (req, res) => {
             { role: "system", content: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." }
         ];
 
-        if (Array.isArray(history)) {
-            history.forEach(h => {
-                messages.push({
-                    role: h.role === 'model' ? 'assistant' : 'user',
-                    content: h.parts?.[0]?.text || ""
-                });
+        // TRUNCATE HISTORY: Keep only the last 6 messages to prevent hitting Tokens Per Minute (TPM) limits
+        const recentHistory = Array.isArray(history) ? history.slice(-6) : [];
+
+        recentHistory.forEach(h => {
+            messages.push({
+                role: h.role === 'model' ? 'assistant' : 'user',
+                content: h.parts?.[0]?.text || ""
             });
-        }
+        });
+
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // Using high-volume free tier models with higher Token-Per-Minute (TPM) limits first
+        // Models prioritized by high-throughput TPM limits on free tier
         const models = [
             "llama-3.1-8b-instant",
-            "meta-llama/llama-4-scout-17b-16e-instruct",
             "llama-3.3-70b-versatile"
         ];
 
@@ -52,7 +52,8 @@ app.post('/api/gemini', async (req, res) => {
                         model: model,
                         messages: messages,
                         temperature: 0.1,
-                        stream: true
+                        stream: true,
+                        max_tokens: 2048 // Prevents overly runaway generation outputs
                     };
 
                     const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
@@ -76,8 +77,8 @@ app.post('/api/gemini', async (req, res) => {
                     console.warn(`[Groq Warning] ${lastError}`);
 
                     if (status === 429) {
-                        // Brief back-off pause to let the token bucket clear
-                        await new Promise(r => setTimeout(r, 1500));
+                        // Pause 3 seconds to let Groq's token-per-minute window clear
+                        await new Promise(r => setTimeout(r, 3000));
                     }
                 } catch (err) {
                     console.error(`[Groq Fetch Error] ${err.message}`);
@@ -89,7 +90,7 @@ app.post('/api/gemini', async (req, res) => {
         if (!groqResponse) {
             console.error(`[Failure] Rate limit hit across all options. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "Groq rate limit reached (Tokens Per Minute exceeded). Please wait 10-15 seconds before sending another message." 
+                error: "Groq rate limit reached. Please wait 10-15 seconds before sending another message." 
             });
         }
 
