@@ -10,15 +10,13 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        // Pulls all Groq API keys from GROQ_API_KEYS environment variable separated by commas
-        const rawKeys = process.env.synapse || process.env.GROQ_API_KEY || "";
+        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
             return res.status(500).json({ error: "Missing GROQ_API_KEYS environment variable." });
         }
 
-        // Format history for OpenAI-compatible chat completion structure
         const messages = [
             { role: "system", content: "You are an authoritative, helpful, and highly accurate AI assistant. State facts clearly, verify reasoning step-by-step, and explicitly state when you are uncertain." }
         ];
@@ -33,53 +31,63 @@ app.post('/api/gemini', async (req, res) => {
         }
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        const payload = {
-            model: "llama-3.3-70b-versatile", // High-performance open-weight model on Groq
-            messages: messages,
-            temperature: 0.1,
-            stream: true
-        };
+        // Tiered model list: tries large versatile model first, then falls back to instant high-limit model
+        const models = [
+            "llama-3.3-70b-versatile",
+            "llama-3.1-8b-instant"
+        ];
 
         let groqResponse = null;
         let lastError = "";
 
+        keyLoop:
         for (let keyIndex = 0; keyIndex < apiKeys.length; keyIndex++) {
             const currentKey = apiKeys[keyIndex];
 
-            try {
-                const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${currentKey}`
-                    },
-                    body: JSON.stringify(payload)
-                });
+            for (const model of models) {
+                try {
+                    const payload = {
+                        model: model,
+                        messages: messages,
+                        temperature: 0.1,
+                        stream: true
+                    };
 
-                if (resp.ok) {
-                    groqResponse = resp;
-                    console.log(`[Groq Success] Key #${keyIndex + 1} connected successfully.`);
-                    break;
+                    const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${currentKey}`
+                        },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (resp.ok) {
+                        groqResponse = resp;
+                        console.log(`[Groq Success] Key #${keyIndex + 1} connected via ${model}`);
+                        break keyLoop;
+                    }
+
+                    const status = resp.status;
+                    const errText = await resp.text();
+                    lastError = `Key #${keyIndex + 1} on ${model} [${status}]: ${errText}`;
+                    console.warn(`[Groq Warning] ${lastError}`);
+
+                    if (status === 429) {
+                        // Pause briefly before trying the next fallback option
+                        await new Promise(r => setTimeout(r, 1000));
+                    }
+                } catch (err) {
+                    console.error(`[Groq Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
+                    lastError = err.message;
                 }
-
-                const status = resp.status;
-                const errText = await resp.text();
-                lastError = `Key #${keyIndex + 1} [${status}]: ${errText}`;
-                console.warn(`[Groq Warning] ${lastError}`);
-
-                if (status === 429) {
-                    await new Promise(r => setTimeout(r, 1500));
-                }
-            } catch (err) {
-                console.error(`[Groq Fetch Error] Key #${keyIndex + 1}: ${err.message}`);
-                lastError = err.message;
             }
         }
 
         if (!groqResponse) {
-            console.error(`[Failure] All Groq keys failed. Last error: ${lastError}`);
+            console.error(`[Failure] All Groq keys/models failed. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All provided Groq API keys have reached their rate limits. Please try again shortly." 
+                error: "All Groq rate limits have been temporarily maxed out. Please wait 30 seconds." 
             });
         }
 
