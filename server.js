@@ -10,7 +10,7 @@ app.post('/api/gemini', async (req, res) => {
     try {
         const { prompt, history } = req.body;
 
-        const rawKeys = process.env.synapse || process.env.GROQ_API_KEY || "";
+        const rawKeys = process.env.GROQ_API_KEYS || process.env.GROQ_API_KEY || "";
         const apiKeys = rawKeys.split(',').map(k => k.trim()).filter(Boolean);
 
         if (apiKeys.length === 0) {
@@ -31,10 +31,10 @@ app.post('/api/gemini', async (req, res) => {
         }
         messages.push({ role: "user", content: prompt || "Hello" });
 
-        // Tiered model list: tries large versatile model first, then falls back to instant high-limit model
+        // Prioritize lightweight, high-limit model to avoid hitting rate caps
         const models = [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant"
+            "llama-3.1-8b-instant",
+            "llama-3.3-70b-versatile"
         ];
 
         let groqResponse = null;
@@ -64,30 +64,30 @@ app.post('/api/gemini', async (req, res) => {
 
                     if (resp.ok) {
                         groqResponse = resp;
-                        console.log(`[Groq Success] Key #${keyIndex + 1} connected via ${model}`);
+                        console.log(`[Groq Success] Connected via ${model}`);
                         break keyLoop;
                     }
 
                     const status = resp.status;
                     const errText = await resp.text();
-                    lastError = `Key #${keyIndex + 1} on ${model} [${status}]: ${errText}`;
+                    lastError = `Model ${model} [${status}]: ${errText}`;
                     console.warn(`[Groq Warning] ${lastError}`);
 
                     if (status === 429) {
-                        // Pause briefly before trying the next fallback option
-                        await new Promise(r => setTimeout(r, 1000));
+                        // Wait 2 seconds for token bucket to replenish before trying next option
+                        await new Promise(r => setTimeout(r, 2000));
                     }
                 } catch (err) {
-                    console.error(`[Groq Fetch Error] Key #${keyIndex + 1} on ${model}: ${err.message}`);
+                    console.error(`[Groq Fetch Error] ${err.message}`);
                     lastError = err.message;
                 }
             }
         }
 
         if (!groqResponse) {
-            console.error(`[Failure] All Groq keys/models failed. Last error: ${lastError}`);
+            console.error(`[Failure] Rate limit hit across all options. Last error: ${lastError}`);
             return res.status(429).json({ 
-                error: "All Groq rate limits have been temporarily maxed out. Please wait 30 seconds." 
+                error: "Groq rate limit reached. Please wait 15-30 seconds before sending another message." 
             });
         }
 
